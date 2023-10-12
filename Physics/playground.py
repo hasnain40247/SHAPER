@@ -1,6 +1,7 @@
 import pymunk
 import pygame
 import pymunk.pygame_util
+from arm import *
 from utils import *
 
 ## Setup the envirnment.
@@ -20,17 +21,20 @@ def setup():
 
 
 ## Function in which all the environment is simulated. 
-def run(window, width=WIDTH, height=HEIGHT):
+def run(window, space, width=WIDTH, height=HEIGHT):
     run = True
     clock = pygame.time.Clock()
     
-    ball = addCircle(space)
+    arm1 = Arm(space, (50, 500))
+    arm2 = Arm(space, (WIDTH-50, 500))
 
     while run:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
                 break
+        arm1.draw(window)
+        arm2.draw(window)
         draw(space, window, draw_options)
         space.step(DT)
         clock.tick(FPS)
@@ -40,10 +44,10 @@ def run(window, width=WIDTH, height=HEIGHT):
 ## Only call this function when we need to render the objects. In most cases rendering it is not needed.
 ## Call it every frame that needs to be rendered.
 def draw(space, window, draw_options):
-    window.fill("black")
+    window.fill((255,255,255))
     space.debug_draw(draw_options)
     pygame.display.update()
 
 if __name__ == "__main__":
     window, space, draw_options = setup()
-    run(window)
+    run(window, space)

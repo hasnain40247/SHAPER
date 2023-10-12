@@ -11,7 +11,12 @@ HEIGHT = 800
 WIDTH = 1000
 FPS = 60.0
 DT = 1.0/FPS
+RADIUS_OF_GRIPPER = 20
+RADIUS_OF_JOINT = 10
+THICKNESS_OF_ARM = 10
 
+def convertCoordinartes(position):
+    return int(position[0]), int(HEIGHT-position[1])
 
 ## Function to create a circle. Used to test the physics.
 ## The body is the underlying object on which the physics is calculated.
