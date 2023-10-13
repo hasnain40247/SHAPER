@@ -31,7 +31,18 @@ def addCircle(space, position=(HEIGHT/2,WIDTH/2), radius=10, mass = 10):
     space.add(body, shape)
     return shape
 
-
 ## TODO
-def addPolygon(space, position=(HEIGHT/2,WIDTH/2), sides=[],mass = 10):
-    pass
+def addPolygon(space, points, position=(HEIGHT/2,WIDTH/2), sides=[],mass = 10):
+    body = pymunk.Body()
+    body.position = position
+    
+    shape = pymunk.Poly(body, points)
+    shape.friction = 0.5
+    shape.collision_type = pymunk.COLLTYPE_DEFAULT
+    space.add(body, shape)
+
+
+def addFloor(space):
+    ## Attaching it to the Golbal pymunk body. Also made it extend horizontally for safety :)
+    rectangle = pymunk.Poly(space.static_body, [(WIDTH+100,HEIGHT),(-100,HEIGHT),(WIDTH+100,HEIGHT-25),(-100,HEIGHT-25)])
+    space.add(rectangle)

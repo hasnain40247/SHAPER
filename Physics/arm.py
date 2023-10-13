@@ -1,6 +1,9 @@
 import pymunk
 import pygame
 from utils import *
+from functools import reduce
+from math import atan2
+
 ## The arm the can be used to manipulate the objects in the frame.
 ## Will have two joins. One will be at the original position and the other at a distance from the first
 ## The end effor can grab objects by chaing its friction. 
@@ -94,3 +97,42 @@ class Gripper(Ball):
     
     def draw(self, display):
         super().draw(display, (0, 255, 0))
+
+
+class Polygon():
+    def __init__(self, space, originalAngle, goalAngle, points):
+        self.orginal = originalAngle
+        self.goal = goalAngle
+        self.currentAngle = originalAngle
+
+        self.points = points
+        
+        positionX = 0
+        positionY = 0
+        for idx in range(len(points)):
+            positionX += points[idx][0]
+            positionY += points[idx][1]
+
+        positionX = positionX/len(points)
+        positionY = positionY/len(points)
+
+        self.body = pymunk.Body()
+        self.body.position = positionX, positionY
+        self.body.angle = atan2(originalAngle[1],originalAngle[0])
+        self.shape = pymunk.Poly(self.body, self.points)
+        self.shape.density = 1
+        self.shape.friction = 1
+        space.add(self.body, self.shape)
+
+
+    def draw(self, display, color=(255,255,255)):
+        pygame.draw.polygon(display, color, list(map(convertCoordinartes, self.points)))
+
+
+    ## We need more fucntions like so to extract the required inputs to the agents.
+    ## Think of all the details the agent might need reaggarding the object and implement them.
+    def getCurrentPosition(self):
+        return self.body.position
+    
+    def getCurrentVelocity(self):
+        return self.body.velocity_at_world_point

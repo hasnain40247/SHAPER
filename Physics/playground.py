@@ -25,8 +25,15 @@ def run(window, space, width=WIDTH, height=HEIGHT):
     run = True
     clock = pygame.time.Clock()
     
+    addFloor(space)
+
+    ## Create two arms.
+    ## They are unpowered so they swing like you know
     arm1 = Arm(space, (50, 500))
     arm2 = Arm(space, (WIDTH-50, 500))
+
+    ## The object that needs to be grabbed and fondled
+    polygon = Polygon(space, (10,10), (0,0), [[150, 100], [250, 100], [250, 200]])
 
     while run:
         for event in pygame.event.get():
@@ -35,6 +42,7 @@ def run(window, space, width=WIDTH, height=HEIGHT):
                 break
         arm1.draw(window)
         arm2.draw(window)
+        polygon.draw(window)
         draw(space, window, draw_options)
         space.step(DT)
         clock.tick(FPS)
