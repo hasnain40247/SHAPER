@@ -1,0 +1,15 @@
+Agent: Arms
+Version: V1
+inputSize: 34
+outputSize: 8
+hiddenLayers:
+  size: 150
+  activationFunction: "Sigmoid"
+  size: 100
+  activationFunction: "Sigmoid"
+  size: 50
+  activationFunction: "Sigmoid"
+  size: 25
+  activationFunction: "Sigmoid"
+  size: 12
+  activationFunction: "Sigmoid"
