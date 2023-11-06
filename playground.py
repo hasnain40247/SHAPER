@@ -1,8 +1,8 @@
 import pymunk
 import pygame
 import pymunk.pygame_util
-from arm import *
-from utils import *
+from Physics.arm import *
+from Physics.utils import *
 
 ## Setup the envirnment.
 def setup():
