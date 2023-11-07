@@ -1,8 +1,9 @@
 import pymunk
 import pygame
-from utils import *
+from Physics.utils import *
 from functools import reduce
 from math import atan2
+from Physics.objectPosition import hitEdge
 
 ## The arm the can be used to manipulate the objects in the frame.
 ## Will have two joins. One will be at the original position and the other at a distance from the first
