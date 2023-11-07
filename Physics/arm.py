@@ -19,18 +19,22 @@ class Arm:
         joint2 = ArmSection(space, ball1, gripper, False)
 
         ## These vraibles are controlled by the physics.
-        self.currentAngle_1 = 0
-        self.CurrentAngle_2 = 0
+        self.CurrentAngle = [0,0]
         
-        ## The below variables are controlled by the agent. 
-        self.DesiriedAngle_1 = 0
-        self.DesiriedAngle_2 = 0
-        
+        ## These variables are controlled by the agent. No limits on the movement.
+        ## Limits and end stops need to be added in the future.
+        self.ExpectedAngle = [0,0]
+
         self.gripper = False
         self.friction = 0
 
         self.Objects.extend([ball1, gripper, joint1, joint2])
-        
+
+    def getNextStep(self):
+        diff = list(map(lambda x: (x[0]-x[1])/ARMSPEED, zip(self.ExpectedAngle,self.CurrentAngle)))        
+        diff = list(map(lambda x: x[0]+x[1], zip(self.CurrentAngle, diff)))
+        return diff
+                
     def rough(self):
         self.gripper.rough()
 
@@ -39,23 +43,22 @@ class Arm:
 
     ## This functon runs the simulation but doesnt render it.
     ## makes it faster. 
-    ## only updates the vraibles in the class. Will not call .draw() methods.
+    ## only updates the variables in the class. Will not call .draw() methods.
     def drawInternal(self):
         pass
 
     ## Returns the current state of the arm.
     ## This will be theh input to the agent.
     def getAttitude(self):
-        pass
+        return self.CurrentAngle
 
     ## Uses the AI output to set the desired angles and the gripper state. 
     def setDesiriedAttitude(self, setAttitude):
-        pass
+        self.ExpectedAngle = setAttitude
 
     def draw(self, display):
         for obj in self.Objects:
             obj.draw(display)
-
 
 class ArmSection():
     def __init__(self, space, body1, body2, anchor=False):
@@ -72,6 +75,7 @@ class ArmSection():
         p1 = convertCoordinartes(self.body1.position)
         p2 = convertCoordinartes(self.body2.position)
         pygame.draw.line(display, color, p1, p2, THICKNESS_OF_ARM)
+
 
 class Ball():
     def __init__(self, space, position):
@@ -97,6 +101,12 @@ class Gripper(Ball):
     
     def draw(self, display):
         super().draw(display, (0, 255, 0))
+
+    def grab(self):
+        ## Check if the gripper is touching the polygon
+        ## If it is add the pivot joint to between them and return them
+        ## We incorporate it with PyMunk and it should work
+        pass
 
 
 class Polygon():
@@ -136,3 +146,10 @@ class Polygon():
     
     def getCurrentVelocity(self):
         return self.body.velocity_at_world_point
+    
+
+if __name__ == "__main__":
+    space = pymunk.Space()
+
+    a = Arm(space, (100, 100))
+    
