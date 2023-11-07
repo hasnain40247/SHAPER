@@ -14,6 +14,7 @@ DT = 1.0/FPS
 RADIUS_OF_GRIPPER = 20
 RADIUS_OF_JOINT = 10
 THICKNESS_OF_ARM = 10
+ARMSPEED = 2
 
 def convertCoordinartes(position):
     return int(position[0]), int(HEIGHT-position[1])
@@ -44,5 +45,11 @@ def addPolygon(space, points, position=(HEIGHT/2,WIDTH/2), sides=[],mass = 10):
 
 def addFloor(space):
     ## Attaching it to the Golbal pymunk body. Also made it extend horizontally for safety :)
-    rectangle = pymunk.Poly(space.static_body, [(WIDTH+100,HEIGHT),(-100,HEIGHT),(WIDTH+100,HEIGHT-25),(-100,HEIGHT-25)])
-    space.add(rectangle)
+    floor = pymunk.Poly(space.static_body, [(WIDTH+100,HEIGHT),(-100,HEIGHT),(WIDTH+100,HEIGHT-25),(-100,HEIGHT-25)])
+    floor.friction = 0.9
+    space.add(floor)
+
+def custom_gravity_velocity(body, gravity, damping, dt):
+    g = (0, 1000)
+    # Call the default velocity function with the new gravity
+    pymunk.Body.update_velocity(body, g, damping, dt)
