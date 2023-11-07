@@ -1,146 +1,7 @@
 import numpy as np
-import os, sys
-import random, copy
+from math import exp
 
-
-## Agent is the base class for all the entities in the the game. All NPC are based on this class.
-## As the Agents are build such that their internal weighs can be altered during the learning process we have access to the network variable.
-## All other variables are internal and will not be changed once instantiated.
-class Agent():
-    '''
-    Initializes the Agent with random weights before being trained.
-    '''
-    def __init__(self, inputSize=None, outputSize=None, hiddenLayers=0, hiddenLayersShape=[], activationFuncs=[]):
-        ## All weights are by default of type float64. This will take a lot of memory but it is better for precission.
-        if inputSize==None or outputSize==None or (len(hiddenLayersShape) != hiddenLayers):
-            self.network = None
-            self.hiddenLayers = -1
-            return
-
-        self.savedWeights = None
-        self.network = None
-        self.hiddenLayers = hiddenLayers
-        self.activationFuncList = []
-        if hiddenLayers == 0:
-            self.network = ([np.random.rand(inputSize,outputSize)]-0.5)*2
-        else:
-            self.network = []
-            self.network.append((np.array([np.random.rand(inputSize,hiddenLayersShape[0])])-0.5)*2)
-            for idx in range(hiddenLayers-1):
-                self.network.append((np.array([np.random.rand(hiddenLayersShape[idx],hiddenLayersShape[idx+1])])-0.5)*2)
-            self.network.append((np.array([np.random.rand(hiddenLayersShape[hiddenLayers-1],outputSize)])-0.5)*2)
-        if len(activationFuncs) == 0:
-            self.activationFuncList = [lambda x:x]*self.hiddenLayers+1
-        else:
-            for idx in range(self.hiddenLayers+1):
-                #### Add checks to see if the functions are applicable to the the list of values
-                self.activationFuncList.append(activationFuncs[idx])
-
-    ## Given an input matrix of size (n, inputSize) gives an output of shape (outputShape, n)
-    ## n is the number of inputs. Can be called on a single or multiple inputs at once.
-    def Predict(self, inputMatrix):
-        output = inputMatrix
-        for idx in range(len(self.network)):
-            output = np.matmul(output, self.network[idx])
-            output = self.activationFuncList[idx](output)
-        return output[0]
-    
-    def Mutate(self, m=10):
-        for idx in range(len(self.network)):
-            self.network[idx] = (mutation(self.network[idx], m))    
-
-
-    ## Needs work
-    def Print(self, f=sys.stdout):
-        if f == sys.stdout:
-            for idx in range(len(self.network)):
-                print("Network", idx+1, file=f)
-                print(self.network[idx], file=f)
-                print("", file=f)
-        elif type(f) == "str":
-            np.savez(f, *self.network)                
-
-    ## When we save we roll the entire list of matices into a single matrix of size (input*output)
-    ## Doing so we will loose the actual internal weights but will allow us to reload it and use it for predictions.
-    def Save(self, prefix="", postfix=""):
-        self.savedWeights = self.network[0]
-        for idx in range(1, len(self.network)):
-            self.savedWeights = np.matmul(self.savedWeights, self.network[idx])
-        fileName = prefix + "Agent" + postfix + ".npz"
-        filePath = os.path.join("./persistedAgents/",fileName)
-        np.save(filePath, self.savedWeights)
-
-    ## Loads data from the file
-    ## Once loaded the self.network and self.savedWeights are not gonna be consistent
-    def Load(self, filePath):
-        data = None
-        if not filePath.endswith(".npy"):
-            filePath += ".npy"
-        try:
-            data = np.load(filePath)
-        except (FileNotFoundError, OSError):
-            print("File not found.")
-            return -1
-        except Exception as e:
-            print("Error: ", e)
-            return -1
-        self.savedWeights = data
-        return data
-
-    def PredictLoaded (self, inputMatrix):
-        return np.matmul(inputMatrix, self.savedWeights)
-    
-## NSFW
-## Not for your eyes. 8===D
-def Crossover(agent1, agent2, cxType="Single"):
-    ## Asuming that the shapes are the same.. If not this function will fail.
-    match cxType:
-        case "Single":
-            return CrossoverSingle(agent1, agent2)
-        case "Multiple":
-            return CrossoverMultiple(agent1, agent2)
-        case _:
-            ## No crossover at all. Onle depends on mutation. Basically the best survie and rely on mutations.
-            return agent1
-
-## Very simple. But, can result iin children being the same as parent in some cases.
-## This is fixed as all kinds have some mutation
-def CrossoverSingle(agent1, agent2):
-    lNewAgent = copy.deepcopy(agent1)
-    crossoverPoint = random.randrange(len(agent1.network))
-    for networkIdx in range(len(lNewAgent.network)):
-        if networkIdx < crossoverPoint:
-            lNewAgent.network[networkIdx] = agent1.network[networkIdx]
-        else:
-            lNewAgent.network[networkIdx] = agent2.network[networkIdx]
-    return lNewAgent
-
-## Very simple. But, can result iin children being the same as parent in some cases.
-## This is fixed as all kinds have some mutation. ## Not yet done i gueess
-def CrossoverMultiple(agent1, agent2, crossoverCount=2):
-    if crossoverCount == 0:
-        return agent1
-    elif crossoverCount == 1:
-        return CrossoverSingle(agent1,agent2)
-    else:
-        lNewAgent = copy.deepcopy(agent1)
-        crossoverPoints = random.sample(list(range(len(agent1.network))), crossoverCount)
-        for networkIdx in range(len(lNewAgent.network)):
-            if networkIdx in crossoverPoints:
-                lNewAgent.network[networkIdx] = agent1.network[networkIdx]
-            else:
-                lNewAgent.network[networkIdx] = agent2.network[networkIdx]
-        return lNewAgent
-
-
-## Converts data from [-1,1] to [0,1]
-def Normalize(lTempData):
-    ratio = 2/(np.max(lTempData)-np.min(lTempData)) 
-    shift = (np.max(lTempData)+np.min(lTempData))/2
-    return (lTempData - shift)*ratio
-
-## Output is between -1 and 1
-## Sigmoid has been modified to give value bewteen -1 and 1
+## Activation functions
 def Sigmoid(x):
     return 2*(1/(1+np.exp(-1*x))-0.5)
 
@@ -149,37 +10,126 @@ def ELU(x):
     y = np.where(x<=0, x, 0.1*x)
     return np.where(y>1,y,1)
 
-## takes a NP array as input and adds some random variation to it. 
-## The randomness is in the range (-0.1 to 0.1)*m. m is the mutation rate between 0 and 100
-def mutation(npArray, m=10):
-    if len(npArray.shape) != 2:
-        return npArray
-    lTempData = (npArray + np.random.rand(npArray.shape[0],npArray.shape[1])*(m/100))
-    lTempData = (lTempData-np.min(lTempData))/(np.max(lTempData)-np.min(lTempData))
-    return lTempData
+def Linear(x):
+    return x
+
+def Normalize(x):
+    return (x-x.min())/(x.max()-x.min())
+
+class Agent:
+    def __init__(self):
+        ## We use the comple variable to make sure the network is well definied.
+        ## Once the network is well definied we allocate the memory and initialize the weights.
+        ## complete should be set to True for the network to be used. 
+        self.complete = False
+        ## This stores the list of matrices that represent the neural network.
+        ## This will be initialized when self.complete is moved to True
+        self.network = []
+        ## Stores the list of activation functions. One per layer. 
+        self.activation = []
+        ## Store the structure of the network as follows: [{Name: A, Size: x, activation: y}...]
+        self.layers = []
+
+
+    ## Name is a string. 
+    ## Size is an integer.
+    ## Activation must be a function that takes a single float input and returns a float number.
+    ## If output is set to true, we allocate the memory for the network. q  
+    def addLayer(self, layerName, size, activation=Linear, output=False):
+        if self.complete:
+            print("Cannot resize a network once memory has been allocated. Delete and create a new agent.")
+            return
+        if len(self.layers) == 0:
+            self.layers.append({"Name": layerName, "Size":size, "Activation": Linear})
+        else:
+            self.layers.append({"Name": layerName, "Size":size, "Activation": activation})
+        if output:
+            self._createnetwork()
+        
+    def _createnetwork(self):
+        if len(self.layers) == 2:
+            self.network = (np.random.rand(self.layers[0]["Size"],self.layers[1]["Size"])-0.5)*2
+            self.activation.append(self.layers[1]["Activation"])
+        else:
+            for idx in range(len(self.layers)-1):
+                self.network.append((np.array(np.random.rand(self.layers[idx]["Size"],self.layers[idx+1]["Size"]))-0.5)*2)
+                self.activation.append(self.layers[idx]["Activation"])
+        self.complete = True
+
+    def forwardPass (self, inputVector):
+        if self.complete:
+            out = np.matmul(inputVector, self.network[0])
+            out = self.activation[0](out)
+            for idx in range(1, len(self.network)):
+                out = np.matmul(out, self.network[idx])
+                out = self.activation[idx](out)
+            return out
+        else:
+            print("Cnnot predict with an incomplete network.")
+        return None
     
-def main():
-    TestAgent = Agent(
-        24+6+1+2+1, # corners + current anglels for two arms + rotation rate + ver/horiz speed + goal slope
-        8, # 2*4 two arms and 3 angles and grabby
-        5, 
-        [150,100,50,25,12],
-        [Sigmoid]*8
-    )
-    #print(TestAgent.network)
+    ## Might be needed in the future.
+    def matToVec(self):
+        pass
 
-    import time
-    avgTime = 0
-    totalCases = 100
-    for i in range(totalCases):
-        inputData = np.random.rand(1,34)
-        s = time.time()
-        output = TestAgent.Predict(inputData)
-        avgTime += time.time() - s
-    print("Avg time: ", avgTime/totalCases)
+    def vecToMat(self):
+        pass
 
-    print("Input", inputData.shape)
-    print("Output", output.shape, output)
 
+    def save(self):
+        if self.complete:
+            ## TODO implement me!!
+            pass
+
+    def load(self, path):
+        if not self.complete:
+            ## TODO Implement me!!
+            pass
+        
+    ## Just to print the network in a nice way.
+    def __repr__(self) -> str:
+        out = ""
+        for idx in range(len(self.layers)):
+            out += "Layer: " + self.layers[idx]["Name"] + " Size: " +  str(self.layers[idx]["Size"]) + "\n"
+        out += "Complete: " + str(self.complete) + "\n"
+        out += "Length of Networks: " + str(len(self.network)) + "\n"
+        out += "Length of Activations: " + str(len(self.activation)) + "\n"
+        return out
+
+    ## Mutate the agent
+    ## Please check me out. Have some issues here.
+    def mutate(self, eta=0.01):
+        if not self.complete:
+            return
+        for idx in range(len(self.network)):
+            matShape = self.network[idx].shape
+            change = (np.random.rand(matShape[0],matShape[1])-0.5)*2*eta
+            newMatrix = self.network[idx] + change
+            self.network[idx]= newMatrix
+            self.network[idx] = Normalize(self.network[idx])
+
+
+## Just some testing code.
 if __name__ == "__main__":
-    main()
+    ## Make an agegnt.
+    a = Agent()
+
+    ## Add all the layers as required.
+    a.addLayer("Input", 28, None, False)
+    #a.addLayer("H1", 150, Sigmoid, False)
+    #a.addLayer("H2", 50, Sigmoid, False)
+    a.addLayer("H3", 20, Sigmoid, False)
+    a.addLayer("Output", 10, Sigmoid, True)
+
+    ## Generate a random input.
+    input = np.random.rand(1,28)
+    #print(a)
+
+    ## Get an output for the random input.
+    out1 = a.forwardPass(input)
+    
+    a.mutate()
+    
+    out2 = a.forwardPass(input)
+    print(out1)
+    print(out2)
