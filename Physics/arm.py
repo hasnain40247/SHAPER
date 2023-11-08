@@ -1,9 +1,9 @@
 import pymunk
-import pygame
 from Physics.utils import *
-from functools import reduce
 from math import atan2
-from Physics.objectPosition import hitEdge
+from Physics.gripper import *
+from Physics.armsection import *
+from Physics.ball import *
 
 def getAngle(body1, body2):
     return atan2(body2.position[1]-body1.position[1], body2.position[0]-body1.position[0])
@@ -50,11 +50,8 @@ class Arm:
 
     def addJoint(self, distanceFromPrevious, armType, end=False):
         space = self.space
-        prevBody = self.Joints[-1]
-        if armType == 0:
-            prevPosition = prevBody.body1.position
-        else:
-            prevPosition = prevBody.body2.position
+        prevBody = self.Objects[-1]
+        prevPosition = prevBody.body.position
 
         if not end:
             ball1 = Ball(space, (prevPosition[0]+distanceFromPrevious, prevPosition[1]))
@@ -114,101 +111,10 @@ class Arm:
         for obj in self.Objects:
             obj.draw(display)
         for j in self.Joints:
-            j.draw(display)
+            j.draw(display)  
 
+# if __name__ == "__main__":
+#     space = pymunk.Space()
 
-class ArmSection():
-    def __init__(self, space, body1, body2, anchor=False):
-        self.body1 = body1.body
-        self.body2 = None
-        if not anchor:
-            self.body2 = body2.body
-        else:
-            ## As its an anchor it is set as an STATIC Object. 
-            self.body2 = pymunk.Body(body_type=pymunk.Body.STATIC)
-            self.body2.position = body2
-        joint = pymunk.PinJoint(self.body1, self.body2)
-        space.add(joint)
-
-    def draw(self, display, color=(255,255,255)):
-        p1 = convertCoordinartes(self.body1.position)
-        p2 = convertCoordinartes(self.body2.position)
-        pygame.draw.line(display, color, p1, p2, THICKNESS_OF_ARM)
-
-
-class Ball():
-    def __init__(self, space, position):
-        self.body = pymunk.Body()
-        self.body.position = position[0], position[1]
-        self.shape = pymunk.Circle(self.body, RADIUS_OF_GRIPPER)
-        self.shape.density = 1
-        self.shape.friction = 1
-        space.add(self.body, self.shape)
-
-    def draw(self, display, color=(0,0,255)):
-        pygame.draw.circle(display, color, convertCoordinartes(self.body.position), RADIUS_OF_GRIPPER)
-
-class Gripper(Ball):
-    def __init__(self, space, postion):
-        super().__init__(space, postion)
-        
-    def rough(self):
-        self.shape.friction = 1
-
-    def smooth(self):
-        self.shape.friction = 0.25
-    
-    def draw(self, display):
-        super().draw(display, (0, 255, 0))
-
-    def grab(self):
-        ## Check if the gripper is touching the polygon
-        ## If it is add the pivot joint to between them and return them
-        ## We incorporate it with PyMunk and it should work
-        pass
-
-
-class Polygon():
-    def __init__(self, space, originalAngle, goalAngle, points):
-        self.orginal = originalAngle
-        self.goal = goalAngle
-        self.currentAngle = originalAngle
-
-        self.points = points
-        
-        positionX = 0
-        positionY = 0
-        for idx in range(len(points)):
-            positionX += points[idx][0]
-            positionY += points[idx][1]
-
-        positionX = positionX/len(points)
-        positionY = positionY/len(points)
-
-        self.body = pymunk.Body()
-        self.body.position = positionX, positionY
-        self.body.angle = atan2(originalAngle[1],originalAngle[0])
-        self.shape = pymunk.Poly(self.body, self.points)
-        self.shape.density = 1
-        self.shape.friction = 1
-        space.add(self.body, self.shape)
-
-
-    def draw(self, display, color=(255,255,255)):
-        pygame.draw.polygon(display, color, list(map(convertCoordinartes, self.points)))
-
-
-    ## We need more fucntions like so to extract the required inputs to the agents.
-    ## Think of all the details the agent might need reaggarding the object and implement them.
-    def getCurrentPosition(self):
-        return self.body.position
-    
-    def getCurrentVelocity(self):
-        return self.body.velocity_at_world_point
-    
-
-if __name__ == "__main__":
-    space = pymunk.Space()
-
-    a = Arm(space, (100, 100))
+#     a = Arm(space, (100, 100))
     
