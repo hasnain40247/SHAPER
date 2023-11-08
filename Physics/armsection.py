@@ -3,19 +3,19 @@ import pygame
 from Physics.utils import *
 
 class ArmSection():
-    def __init__(self, space, body1, body2, anchor=False):
-        self.body1 = body1.body
-        self.body2 = None
+    def __init__(self, space, anchorPoint, newPoint, anchor=False):
+        self.anchorPoint = anchorPoint.body
+        self.newPoint = None
         if not anchor:
-            self.body2 = body2.body
+            self.newPoint = newPoint.body
         else:
             ## As its an anchor it is set as an STATIC Object. 
-            self.body2 = pymunk.Body(body_type=pymunk.Body.STATIC)
-            self.body2.position = body2
-        joint = pymunk.PinJoint(self.body1, self.body2)
+            self.newPoint = pymunk.Body(body_type=pymunk.Body.STATIC)
+            self.newPoint.position = newPoint
+        joint = pymunk.PinJoint(self.anchorPoint, self.newPoint)
         space.add(joint)
 
     def draw(self, display, color=(255,255,255)):
-        p1 = convertCoordinartes(self.body1.position)
-        p2 = convertCoordinartes(self.body2.position)
+        p1 = convertCoordinartes(self.anchorPoint.position)
+        p2 = convertCoordinartes(self.newPoint.position)
         pygame.draw.line(display, color, p1, p2, THICKNESS_OF_ARM)
