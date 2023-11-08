@@ -30,10 +30,8 @@ def run(window, space, width=WIDTH, height=HEIGHT):
 
     ## Create two arms.
     ## They are unpowered so they swing like you know
-    arm1 = Arm(space, (50, 500))
-    arm1.addJoint(100, end = False)
-    arm1.addJoint(50, end = False)
-    arm1.addJoint(50, end = True)
+    arm1 = Arm(space, (50, 500), end = False, armLength = 100, extension = [(50, False), (50, True)])
+    #arm1.addJoint(50, end = False).addJoint(50, end = True)
     
     #arm2 = Arm(space, (WIDTH-50, 500))
 

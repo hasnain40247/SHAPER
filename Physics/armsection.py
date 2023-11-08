@@ -5,7 +5,6 @@ from Physics.utils import *
 class ArmSection():
     def __init__(self, space, anchorPoint, newPoint, anchor=False):
         self.anchorPoint = anchorPoint.body
-        self.newPoint = None
         if not anchor:
             self.newPoint = newPoint.body
         else:
