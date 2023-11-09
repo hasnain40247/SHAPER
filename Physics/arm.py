@@ -1,9 +1,9 @@
 import pymunk
-import pygame
 from Physics.utils import *
-from functools import reduce
 from math import atan2
-from Physics.objectPosition import hitEdge
+from Physics.gripper import *
+from Physics.armsection import *
+from Physics.ball import *
 
 def getAngle(body1, body2):
     return atan2(body2.position[1]-body1.position[1], body2.position[0]-body1.position[0])
@@ -96,8 +96,10 @@ class Arm:
         for obj in self.Objects:
             obj.draw(display)
         for j in self.Joints:
-            j.draw(display)
+            j.draw(display)  
 
+# if __name__ == "__main__":
+#     space = pymunk.Space()
 
 class ArmSection():
     ## If anchor is set to True body2 must be a position

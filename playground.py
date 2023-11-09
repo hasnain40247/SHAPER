@@ -2,6 +2,7 @@ import pymunk
 import pygame
 import pymunk.pygame_util
 from Physics.arm import *
+from Physics.polygon import *
 from Physics.utils import *
 
 ## Setup the envirnment.
@@ -48,7 +49,8 @@ def run(window, space, width=WIDTH, height=HEIGHT):
                 run = False
                 break
         arm1.draw(window)
-        arm2.draw(window)
+        #arm2.draw(window)
+
         polygon.draw(window)
         draw(space, window, draw_options)
         space.step(DT)
