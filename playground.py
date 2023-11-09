@@ -29,11 +29,15 @@ def run(window, space, width=WIDTH, height=HEIGHT):
 
     ## Create two arms.
     ## They are unpowered so they swing like you know
-    arm1 = Arm(space, (50, 500), 100, False)
-    arm1.addJoint(50, armType=0, end = False)
-    arm1.addJoint(50, armType=0, end = True)
+    arm1 = Arm(space, (50, 500))
+    arm1.addJoint(100, False)
+    arm1.addJoint(50, False)
+    arm1.addJoint(25, True)
     
-    arm2 = Arm(space, (WIDTH-50, 500), 200, True)
+    arm2 = Arm(space, (WIDTH-50, 100))
+    arm2.addJoint(100, False)
+    arm2.addJoint(100, False)
+    arm2.addJoint(100, True)
 
     ## The object that needs to be grabbed and fondled
     polygon = Polygon(space, (10,10), (0,0), [[150, 100], [250, 100], [250, 200]])

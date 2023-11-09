@@ -12,7 +12,7 @@ def getAngle(body1, body2):
 ## Will have n joints. One will be at the original position and the other sat a distance from the previous.
 ## The end effector can grab objects by changing its friction. It can also grab them fully by forming a pin join between it and the other body. 
 class Arm:
-    def __init__(self, space, position, armLenght, end=False):
+    def __init__(self, space, position, end=False):
         ## The static point where the arm starts. This point doesnt change.
         self.Anchor = position
         ## Holds all the objects and the constrains related to this arm. 
@@ -26,62 +26,44 @@ class Arm:
         self.ExpectedAngle = []
 
         self.space = space
-
-        if end:
-            gripper = Gripper(space, (position[0]+armLenght, position[1]))
-            joint1 = ArmSection(space, gripper, (position[0], position[1]), True)
-
-            self.complete = True
-
-            self.Objects.append(gripper)
-            self.Joints.append(joint1)
-            self.CurrentAngle.append(getAngle(gripper.body, joint1.body2))
-            self.ExpectedAngle = [0]
-
-        else:
-            ball1 = Ball(space, (position[0]+armLenght, position[1]))
-            joint1 = ArmSection(space, ball1, position, True)
-
-            self.Objects.append(ball1)
-            self.Joints.append(joint1)
-            self.CurrentAngle.append(getAngle(ball1.body, joint1.body2))
-            self.ExpectedAngle.append(0)
         
 
-    def addJoint(self, distanceFromPrevious, armType, end=False):
-        space = self.space
-        prevBody = self.Joints[-1]
-        if armType == 0:
-            prevPosition = prevBody.body1.position
+    def addJoint(self, distanceFromPrevious, end=False):
+        if self.complete:
+            print("Its already built. Re initialize the arm.")
+            return
+        if len(self.Objects) == 0:
+            ## First joint need to be added
+            if end:
+                ## Only one jointed arm. 
+                gripper = Gripper(self.space, (self.Anchor[0], self.Anchor[1]+distanceFromPrevious))
+                joint = ArmSection(self.space, gripper, self.Anchor, True)
+
+                self.Joints.append(joint)
+                self.Objects.append(gripper)
+                self.complete = True
+            else:
+                ball = Ball(self.space, (self.Anchor[0], self.Anchor[1]+distanceFromPrevious))
+                joint = ArmSection(self.space, ball, self.Anchor, True)
+
+                self.Joints.append(joint)
+                self.Objects.append(ball)
         else:
-            prevPosition = prevBody.body2.position
+            if end:
+                prevBody = self.Objects[-1]
+                gripper = Gripper(self.space, (prevBody.body.position[0], prevBody.body.position[1]+distanceFromPrevious))
+                joint = ArmSection(self.space, gripper, prevBody, False)
 
-        if not end:
-            ball1 = Ball(space, (prevPosition[0]+distanceFromPrevious, prevPosition[1]))
-            joint1 = ArmSection(space, ball1, prevPosition, True)
-
-            self.Objects.append(ball1)
-            self.Joints.append(joint1)
-
-            self.ExpectedAngle.append(0)
-            if armType == 0:
-                self.CurrentAngle.append(getAngle(ball1.body, joint1.body1))
+                self.Joints.append(joint)
+                self.Objects.append(gripper)
+                self.complete = True
             else:
-                self.CurrentAngle.append(getAngle(ball1.body, joint1.body2))
-        else: 
+                prevBody = self.Objects[-1]
+                ball = Ball(self.space, (prevBody.body.position[0], prevBody.body.position[1]+distanceFromPrevious))
+                joint = ArmSection(self.space, ball, prevBody, False)
 
-            gripper = Gripper(space, (prevPosition[0]+distanceFromPrevious, prevPosition[1]))
-            joint1 = ArmSection(space, gripper, prevBody, False)
-
-            self.Objects.append(gripper)
-            self.Joints.append(joint1)
-
-            self.ExpectedAngle.append(0)
-            if armType == 0:
-                self.CurrentAngle.append(getAngle(gripper.body, joint1.body1))
-            else:
-                self.CurrentAngle.append(getAngle(gripper.body, joint1.body2))
-            self.complete = True
+                self.Joints.append(joint)
+                self.Objects.append(ball)
     
 
     def getNextStep(self):
@@ -118,6 +100,8 @@ class Arm:
 
 
 class ArmSection():
+    ## If anchor is set to True body2 must be a position
+    ## If anchor is False body2 must be pymunk body.
     def __init__(self, space, body1, body2, anchor=False):
         self.body1 = body1.body
         self.body2 = None
@@ -159,7 +143,7 @@ class Gripper(Ball):
         self.shape.friction = 0.25
     
     def draw(self, display):
-        super().draw(display, (0, 255, 0))
+        super().draw(display, (0, 255, 255))
 
     def grab(self):
         ## Check if the gripper is touching the polygon
