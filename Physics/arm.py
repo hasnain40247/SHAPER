@@ -5,7 +5,9 @@ from Physics.gripper import *
 from Physics.armsection import *
 from Physics.ball import *
 
-def getAngle(body1, body2):
+def getAngle(body1, body2=None):
+    if body2 == None:
+        return body1.angle
     return atan2(body2.position[1]-body1.position[1], body2.position[0]-body1.position[0])
 
 ## The arm the can be used to manipulate the objects in the frame.
@@ -22,6 +24,8 @@ class Arm:
         ## Set complete to True only after all the joints are initialzed.
         self.complete = False
 
+
+        ## The current angle is set to the angle of the 
         self.CurrentAngle = []
         self.ExpectedAngle = []
 
@@ -41,6 +45,10 @@ class Arm:
 
                 self.Joints.append(joint)
                 self.Objects.append(gripper)
+                
+                self.CurrentAngle.append(getAngle(joint.body1, joint.body2))
+                self.ExpectedAngle.append(0.0)
+                
                 self.complete = True
             else:
                 ball = Ball(self.space, (self.Anchor[0], self.Anchor[1]+distanceFromPrevious))
@@ -48,6 +56,9 @@ class Arm:
 
                 self.Joints.append(joint)
                 self.Objects.append(ball)
+
+                self.CurrentAngle.append(getAngle(joint.body1, joint.body2))
+                self.ExpectedAngle.append(0.0)
         else:
             if end:
                 prevBody = self.Objects[-1]
@@ -56,6 +67,10 @@ class Arm:
 
                 self.Joints.append(joint)
                 self.Objects.append(gripper)
+
+                self.CurrentAngle.append(getAngle(joint.body1, joint.body2))
+                self.ExpectedAngle.append(0.0)
+
                 self.complete = True
             else:
                 prevBody = self.Objects[-1]
@@ -64,7 +79,22 @@ class Arm:
 
                 self.Joints.append(joint)
                 self.Objects.append(ball)
+
+                self.CurrentAngle.append(getAngle(joint.body1, joint.body2))
+                self.ExpectedAngle.append(0.0)
+
+    def __repr__(self) -> str:
+        out = ""
+        for obj in self.Objects:
+            out += repr(obj)
+
+        return out
     
+    def updateCurrentAngles(self):
+        for idx in range(len(self.Joints)):
+            joint = self.Joints[idx]
+            self.CurrentAngle[idx] = getAngle(joint.body1, joint.body2)
+
 
     def getNextStep(self):
         diff = list(map(lambda x: (x[0]-x[1])/ARMSPEED, zip(self.ExpectedAngle,self.CurrentAngle)))        
@@ -92,14 +122,17 @@ class Arm:
     def setDesiriedAttitude(self, setAttitude):
         self.ExpectedAngle = setAttitude
 
-    def draw(self, display):
+    ## Renders the object on the window.
+    ## But also updates the current angles. 
+    def draw(self, display, verbose=False):
+        self.updateCurrentAngles()
         for obj in self.Objects:
             obj.draw(display)
         for j in self.Joints:
             j.draw(display)  
-
-# if __name__ == "__main__":
-#     space = pymunk.Space()
+        if verbose:
+            for idx in range(len(self.CurrentAngle)):
+                print(radsToDegree(self.CurrentAngle[idx]))
 
 class ArmSection():
     ## If anchor is set to True body2 must be a position
@@ -134,6 +167,9 @@ class Ball():
     def draw(self, display, color=(0,0,255)):
         pygame.draw.circle(display, color, convertCoordinartes(self.body.position), RADIUS_OF_GRIPPER)
 
+    def __repr__(self) -> str:
+        return "Ball"
+
 class Gripper(Ball):
     def __init__(self, space, postion):
         super().__init__(space, postion)
@@ -145,13 +181,16 @@ class Gripper(Ball):
         self.shape.friction = 0.25
     
     def draw(self, display):
-        super().draw(display, (0, 255, 255))
+        pygame.draw.circle(display, (0, 0, 0), convertCoordinartes(self.body.position), RADIUS_OF_GRIPPER)
+        #super().draw(display, (0, 0, 0))
 
     def grab(self):
         ## Check if the gripper is touching the polygon
-        ## If it is add the pivot joint to between them and return them
-        ## We incorporate it with PyMunk and it should work
+        ## Create a pivot constraint and return it. The constraint will be added to the space.
         pass
+
+    def __repr__(self) -> str:
+        return "Gripper"
 
 
 class Polygon():

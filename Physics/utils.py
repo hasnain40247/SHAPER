@@ -16,6 +16,9 @@ RADIUS_OF_JOINT = 10
 THICKNESS_OF_ARM = 10
 ARMSPEED = 2
 
+def radsToDegree(data):
+    return (data*57.2957795) % 360.0
+
 def convertCoordinartes(position):
     return int(position[0]), int(HEIGHT-position[1])
 

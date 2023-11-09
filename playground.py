@@ -48,8 +48,8 @@ def run(window, space, width=WIDTH, height=HEIGHT):
             if event.type == pygame.QUIT:
                 run = False
                 break
-        arm1.draw(window)
-        #arm2.draw(window)
+        arm1.draw(window, True)
+        arm2.draw(window)
 
         polygon.draw(window)
         draw(space, window, draw_options)
