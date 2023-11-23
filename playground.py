@@ -2,8 +2,11 @@ import pymunk
 import pygame
 import pymunk.pygame_util
 from Physics.arm import *
+from Physics.arm2 import *
 from Physics.polygon import *
 from Physics.utils import *
+
+PHYSICS_FPS = 25
 
 ## Setup the envirnment.
 def setup():
@@ -28,32 +31,42 @@ def run(window, space, width=WIDTH, height=HEIGHT):
     
     addFloor(space)
 
-    ## Create two arms.
-    ## They are unpowered so they swing like you know
-    arm1 = Arm(space, (50, 500))
-    arm1.addJoint(100, False)
-    arm1.addJoint(50, False)
-    arm1.addJoint(25, True)
-    
-    arm2 = Arm(space, (WIDTH-50, 100))
-    arm2.addJoint(100, False)
-    arm2.addJoint(100, False)
-    arm2.addJoint(100, True)
-
+    ## shapeFilter = pymunk.ShapeFilter(group=1)
     ## The object that needs to be grabbed and fondled
     polygon = Polygon(space, (10,10), (0,0), [[150, 100], [250, 100], [250, 200]])
+
+    arm1 = Arm1(space, (250, 205))
+    arm1.addJoint(100)
+    arm1.addJoint(200, True)
+
+    arm2 = Arm1(space, (300, 250),2)
+    arm2.addJoint(150)
+    arm2.addJoint(100)
+    arm2.addJoint(50, True)
+
+
+    arm3 = Arm1(space, (500, 500),3)
+    arm3.addJoint(150)
+    arm3.addJoint(75)
+    arm3.addJoint(50, True)
+
+
+    ## There is a problem. If we render every frame it looks janky. 
+    ## Fix is to run the physics engine at 600Hz and render the stuff at 60Hz.
+    ## We also need to set a rate for the AI to run in the background. When the agent responds the physics engine will react.
 
     while run:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
                 break
-        arm1.draw(window, True)
-        arm2.draw(window)
+
+        ## Render only some of the frames. Makes it more smoother.
+        for x in range(PHYSICS_FPS):
+            space.step(DT/float(PHYSICS_FPS))
 
         polygon.draw(window)
         draw(space, window, draw_options)
-        space.step(DT)
         clock.tick(FPS)
 
     pygame.quit()

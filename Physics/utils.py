@@ -4,9 +4,10 @@
 import pymunk
 import pygame
 import pymunk.pygame_util
-import random 
+import random
 
 
+PI = 355/113 ## Fancy approximation for Pi
 HEIGHT = 800
 WIDTH = 1000
 FPS = 60.0
@@ -14,10 +15,17 @@ DT = 1.0/FPS
 RADIUS_OF_GRIPPER = 20
 RADIUS_OF_JOINT = 10
 THICKNESS_OF_ARM = 10
-ARMSPEED = 2
+MaxAngleChangePerFrame = 0.1
+
+
+## Used to setup the collision type for the polygon. 
+POLYGON_COLL_TYPE = 0
 
 def radsToDegree(data):
     return (data*57.2957795) % 360.0
+
+def DegreesToRads(data):
+    return data*(2*PI/360) % (2*PI)
 
 def convertCoordinartes(position):
     return int(position[0]), int(HEIGHT-position[1])

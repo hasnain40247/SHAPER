@@ -1,4 +1,5 @@
 import pymunk
+from pymunk import SimpleMotor
 from Physics.utils import *
 from math import atan2
 from Physics.gripper import *
@@ -23,11 +24,19 @@ class Arm:
         self.Joints = list()
         ## Set complete to True only after all the joints are initialzed.
         self.complete = False
-
+        self.currentFrameInList = 0
+        self.maxFramesToReachGoal = 0
+        ## Variable to store if the interpolation function was executed.
+        ## Once the interpolated values are set this variable will be set and this will prevent it from running every frame.
+        ## Every time a new attitude is requested a new interpolation list is formed.  
+        self.interpolationSet = False
 
         ## The current angle is set to the angle of the 
         self.CurrentAngle = []
         self.ExpectedAngle = []
+
+        ## List of lists. Each entrry will be the next angle the arm needs to move to. 
+        self.InterpolationAngles = []
 
         self.space = space
         
@@ -42,6 +51,9 @@ class Arm:
                 ## Only one jointed arm. 
                 gripper = Gripper(self.space, (self.Anchor[0], self.Anchor[1]+distanceFromPrevious))
                 joint = ArmSection(self.space, gripper, self.Anchor, True)
+                motor = SimpleMotor(gripper.body, joint.body2, 10.0)
+                self.space.add(motor)
+
 
                 self.Joints.append(joint)
                 self.Objects.append(gripper)
@@ -53,6 +65,8 @@ class Arm:
             else:
                 ball = Ball(self.space, (self.Anchor[0], self.Anchor[1]+distanceFromPrevious))
                 joint = ArmSection(self.space, ball, self.Anchor, True)
+                motor = SimpleMotor(ball.body, joint.body2, 0.0)
+                self.space.add(motor)
 
                 self.Joints.append(joint)
                 self.Objects.append(ball)
@@ -64,6 +78,9 @@ class Arm:
                 prevBody = self.Objects[-1]
                 gripper = Gripper(self.space, (prevBody.body.position[0], prevBody.body.position[1]+distanceFromPrevious))
                 joint = ArmSection(self.space, gripper, prevBody, False)
+                motor = SimpleMotor(gripper.body, prevBody.body, 0.0)
+                self.space.add(motor)
+
 
                 self.Joints.append(joint)
                 self.Objects.append(gripper)
@@ -76,12 +93,18 @@ class Arm:
                 prevBody = self.Objects[-1]
                 ball = Ball(self.space, (prevBody.body.position[0], prevBody.body.position[1]+distanceFromPrevious))
                 joint = ArmSection(self.space, ball, prevBody, False)
+                motor = SimpleMotor(ball.body, prevBody.body, 0.0)
+                self.space.add(motor)
+
 
                 self.Joints.append(joint)
                 self.Objects.append(ball)
 
                 self.CurrentAngle.append(getAngle(joint.body1, joint.body2))
                 self.ExpectedAngle.append(0.0)
+
+        if self.complete:
+            self.nextAngle = []
 
     def __repr__(self) -> str:
         out = ""
@@ -90,16 +113,24 @@ class Arm:
 
         return out
     
+    ## Gets the data from the physics engine and stores it in a list.
+    ## This will be further porcessed by the agents by using the self.currentAngles variables
     def updateCurrentAngles(self):
         for idx in range(len(self.Joints)):
             joint = self.Joints[idx]
             self.CurrentAngle[idx] = getAngle(joint.body1, joint.body2)
 
-
-    def getNextStep(self):
-        diff = list(map(lambda x: (x[0]-x[1])/ARMSPEED, zip(self.ExpectedAngle,self.CurrentAngle)))        
-        diff = list(map(lambda x: x[0]+x[1], zip(self.CurrentAngle, diff)))
-        return diff
+    def getNextAngle(self):
+        if self.interpolationSet and self.maxFramesToReachGoal > self.currentFrameInList:
+            #print("Diff angle:", self.nextAngle)
+            #print("Current angle:", self.currentFrameInList)
+            self.currentFrameInList += 1
+            return list(map(lambda x: x[0]+self.currentFrameInList*x[1], zip(self.CurrentAngle,self.nextAngle)))
+        else:
+            self.maxFramesToReachGoal = 0
+            self.currentFrameInList = 0
+            self.interpolationSet = False
+            return None
                 
     def rough(self):
         self.gripper.rough()
@@ -111,7 +142,7 @@ class Arm:
     ## makes it faster. 
     ## only updates the variables in the class. Will not call .draw() methods.
     def drawInternal(self):
-        pass
+        self.updateCurrentAngles()
 
     ## Returns the current state of the arm.
     ## This will be theh input to the agent.
@@ -120,19 +151,42 @@ class Arm:
 
     ## Uses the AI output to set the desired angles and the gripper state. 
     def setDesiriedAttitude(self, setAttitude):
+        if len(setAttitude) != len(self.ExpectedAngle):
+            print("Error incorrect dimensions")
+        ## Scale all the values between 0 and 2Pi
+        setAttitude = list(map(lambda x: x%(2*PI), setAttitude))
         self.ExpectedAngle = setAttitude
+        self.genarateInterpolationSet()
+
+    def genarateInterpolationSet(self):
+        diffAngles = list(map(lambda x: x[0]-x[1], zip(self.ExpectedAngle,self.CurrentAngle)))
+        maxChange = max(diffAngles)
+        numberOfFrames = maxChange/MaxAngleChangePerFrame
+        self.nextAngle = list(map(lambda x:x/numberOfFrames, diffAngles))
+        self.interpolationSet = True
+        self.currentFrameInList = 0
+        self.maxFramesToReachGoal = numberOfFrames
 
     ## Renders the object on the window.
     ## But also updates the current angles. 
     def draw(self, display, verbose=False):
+        if self.interpolationSet:
+            nextAngles = self.getNextAngle()
+            if nextAngles != None:
+                for idx in range(len(nextAngles)):
+                    ## Please add code to set the angle between the bodes
+                    self.Objects[idx].body.angle = nextAngles[idx]
+
+        ## Update the angles of the bodies
         self.updateCurrentAngles()
+
+        ## Draw the objects
         for obj in self.Objects:
             obj.draw(display)
         for j in self.Joints:
             j.draw(display)  
         if verbose:
-            for idx in range(len(self.CurrentAngle)):
-                print(radsToDegree(self.CurrentAngle[idx]))
+            print(list(map(radsToDegree, self.CurrentAngle)))
 
 class ArmSection():
     ## If anchor is set to True body2 must be a position
@@ -216,6 +270,7 @@ class Polygon():
         self.shape = pymunk.Poly(self.body, self.points)
         self.shape.density = 1
         self.shape.friction = 1
+        self.shape.collision_type = POLYGON_COLL_TYPE
         space.add(self.body, self.shape)
 
 
@@ -235,5 +290,12 @@ class Polygon():
 if __name__ == "__main__":
     space = pymunk.Space()
 
-    a = Arm(space, (100, 100))
+    arm1 = Arm(space, (50, 500))
+    arm1.addJoint(100, False)
+    arm1.addJoint(50, False)
+    arm1.addJoint(25, True)
     
+
+    arm1.setDesiriedAttitude([0, 0, DegreesToRads(90)])
+    print(arm1.CurrentAngle)
+    print(arm1.getNextAngle())
