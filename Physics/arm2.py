@@ -1,14 +1,21 @@
 import pymunk
 from pymunk import SimpleMotor
-from Physics.utils import *
+#from Physics.utils import *
 from math import atan2
-from Physics.gripper import *
-from Physics.armsection import *
-from Physics.ball import *
+#from Physics.gripper import *
+#from Physics.armsection import *
+#from Physics.ball import *
 
 
 MASS_PER_LENGTH = 10
 ARM_WIDTH = 10
+PI = 355/113 ## Fancy approximation for Pi
+
+
+## PID settings
+P_ = 1.9
+D_ = -0.5
+I_ = 0.0005
 
 class Arm1():
     def __init__(self, space, anchorPoistion, group=1):
@@ -18,23 +25,19 @@ class Arm1():
             return
         self.anchor = anchorPoistion
         self.complete = False
-        self.interpolationSet = False
 
         self.CurrentAngles = []
         self.ExpectedAngles = []
-        self.NextAngles = []
 
         self.Objects = []
         self.collType = group
         self.shapeFilter = pymunk.ShapeFilter(group=1)
 
-        self.currentFrameInList = 0
-        self.maxFramesToReachGoal = 0
-        ## Variable to store if the interpolation function was executed.
-        ## Once the interpolated values are set this variable will be set and this will prevent it from running every frame.
-        ## Every time a new attitude is requested a new interpolation list is formed.  
-        self.interpolationSet = False
 
+        ## Number of frames since the expected angles were set.
+        ## This variable will be rest every time the SetAngles function is called.
+        ## It will be incremented every time the arbiter is executed successfully. 
+        self.diffCounter = []
 
     def addJoint(self, length, end=False):
         if self.complete:
@@ -58,14 +61,19 @@ class Arm1():
 
             ## Add constrains and motors to the bodies.
             newJoint = pymunk.PinJoint(newArmObject, newAnchor, (0, -length/2), (0, 0))
-            newMotor = pymunk.SimpleMotor(newArmObject, newAnchor, 0.5)
+            newMotor = pymunk.SimpleMotor(newArmObject, newAnchor, 0.0)
 
             ## Disable colisions between the arms. 
             ## Might remove this based on hhow the model performs.
             newArmShape.filter = self.shapeFilter
 
             ## Also add some meta data here. Makes it easier for rendering.
-            self.Objects.append({"Object":newArmObject, "Middle" : (self.anchor[0], self.anchor[1]+length/2), "Length": length})
+            self.Objects.append({
+                                "Object":newArmObject,
+                                "Motor": newMotor,
+                                "Middle" : (self.anchor[0], self.anchor[1]+length/2),
+                                "Length": length
+                                })
 
             ## Add all the objects and shapes to the space.
             self.space.add(newArmObject)
@@ -92,20 +100,27 @@ class Arm1():
 
             ## Add constrains and motors to the bodies.
             newJoint = pymunk.PinJoint(newArmObject, prevBody, (0, -length/2), (0, prevLength/2))
-            newMotor = pymunk.SimpleMotor(newArmObject, prevBody, 0.5)
+            newMotor = pymunk.SimpleMotor(newArmObject, prevBody, 0.0)
 
             ## Disable colision between the arms.
             newArmShape.filter = self.shapeFilter
 
             ## Also add some meta data here. Makes it easier for rendering.
-            self.Objects.append({"Object":newArmObject, "Middle" : (prevPosition[0], prevPosition[1]+prevLength/2+length/2), "Length": length, "Shape": newArmShape})
-
+            self.Objects.append({
+                                "Object":newArmObject,
+                                "Motor": newMotor,
+                                "Middle" : (prevPosition[0], prevPosition[1]+prevLength/2+length/2),
+                                "Length": length,
+                                "Shape": newArmShape
+                            })
             self.space.add(newArmObject)
             self.space.add(newArmShape)
             self.space.add(newJoint)
             self.space.add(newMotor)
         if end:
             self.complete = True
+            self.CurrentAngles = [0]*len(self.Objects)
+            self.diffCounter = [0]*len(self.Objects)
             #self.space.add_collision_handler()
 
 
@@ -145,17 +160,41 @@ class Arm1():
         ## Clip it between 0 and 2PI
         inputs = list(map(lambda x: x%(2*PI), inputs))
         self.ExpectedAngles = inputs
+        self.diffCounter = [0]*len(self.Objects)
 
     ## Get the current angles
     def getAngles(self):
         for objectIdx in range(len(self.Objects)):
             self.CurrentAngles[objectIdx] = self.Objects[objectIdx]["Object"].angle
+        self.arbiterAgent()
+        #print("Current angle:", self.CurrentAngles, "Expected angle:", self.ExpectedAngles)
         return self.CurrentAngles
     
-    ## Once we get the data from the agent we need the physics engine to execute it.
-    ## This function uses a simple PID system to achieve that. 
-    ## DIFF = (EXPECTED - CURRENT)
-    # def arbiterAgent(self):
-    #     diff = list(map(lambda x, y: x-y, zip(self.CurrentAngles, self.ExpectedAngles)))
-    #     for objIdx in range(len(self.Objects)):
-    #         self.Objects[objIdx]["Objects"]
+    # Once we get the data from the agent we need the physics engine to execute it.
+    # This function uses a simple PID system to achieve that. 
+    # DIFF = (EXPECTED - CURRENT)
+    def arbiterAgent(self):
+        if len(self.ExpectedAngles) == 0:
+            return
+        diff = list(map(lambda x: x[1]-x[0], zip(self.CurrentAngles, self.ExpectedAngles)))
+        for objIdx in range(len(self.Objects)):
+            if diff[objIdx] < 10**-6:
+                continue
+            self.diffCounter[objIdx] += diff[objIdx]
+            self.Objects[objIdx]["Motor"].rate = P_*diff[objIdx] + D_*self.Objects[objIdx]["Motor"].rate + I_*self.diffCounter[objIdx]
+
+
+if __name__ == "__main__":
+    space = pymunk.Space()
+    arm = Arm1(space, (250, 250))
+    arm.addJoint(100)
+    arm.addJoint(100, True)
+
+    curAngles = arm.getAngles()
+    print("Current Angles:", curAngles)
+
+    arm.setAngles([3.14, 0])
+
+    while True:
+        curAngles = arm.getAngles()
+        print("Current Angles:", curAngles)

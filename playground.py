@@ -24,6 +24,8 @@ def setup():
     return window, space, draw_options
 
 
+afterKFrames = 300
+
 ## Function in which all the environment is simulated. 
 def run(window, space, width=WIDTH, height=HEIGHT):
     run = True
@@ -35,14 +37,14 @@ def run(window, space, width=WIDTH, height=HEIGHT):
     ## The object that needs to be grabbed and fondled
     polygon = Polygon(space, (10,10), (0,0), [[150, 100], [250, 100], [250, 200]])
 
-    arm1 = Arm1(space, (250, 205))
-    arm1.addJoint(100)
-    arm1.addJoint(200, True)
+    # arm1 = Arm1(space, (250, 205))
+    # arm1.addJoint(100)
+    # arm1.addJoint(200, True)
 
-    arm2 = Arm1(space, (300, 250),2)
-    arm2.addJoint(150)
-    arm2.addJoint(100)
-    arm2.addJoint(50, True)
+    # arm2 = Arm1(space, (300, 250),2)
+    # arm2.addJoint(150)
+    # arm2.addJoint(100)
+    # arm2.addJoint(50, True)
 
 
     arm3 = Arm1(space, (500, 500),3)
@@ -55,6 +57,9 @@ def run(window, space, width=WIDTH, height=HEIGHT):
     ## Fix is to run the physics engine at 600Hz and render the stuff at 60Hz.
     ## We also need to set a rate for the AI to run in the background. When the agent responds the physics engine will react.
 
+    frameNumber = 0
+    flag = False
+
     while run:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -65,9 +70,21 @@ def run(window, space, width=WIDTH, height=HEIGHT):
         for x in range(PHYSICS_FPS):
             space.step(DT/float(PHYSICS_FPS))
 
+        if frameNumber > afterKFrames and not flag:
+            print("Setting angles")
+            # arm1.setAngles([0, 0.8])
+            # arm2.setAngles([3.14, 3.14, 3.14])
+            arm3.setAngles([1.6, 3.0, 0])
+            flag = not flag
+
+        # arm1.getAngles()
+        # arm2.getAngles()
+        arm3.getAngles() 
         polygon.draw(window)
         draw(space, window, draw_options)
         clock.tick(FPS)
+
+        frameNumber += 1
 
     pygame.quit()
 
