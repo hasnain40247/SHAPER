@@ -1,12 +1,14 @@
 import pymunk
 import pygame
 import pymunk.pygame_util
+from Agent.Agent2 import *
 from Physics.arm import *
 from Physics.arm2 import *
 from Physics.polygon import *
 from Physics.utils import *
 
 PHYSICS_FPS = 25
+
 
 ## Setup the envirnment.
 def setup():
@@ -33,24 +35,42 @@ def run(window, space, width=WIDTH, height=HEIGHT):
     
     addFloor(space)
 
-    ## shapeFilter = pymunk.ShapeFilter(group=1)
+    ## Make an agegnt.
+    agent = Agent()
+
+    ## Add all the layers as required.
+    agent.addLayer("Input", 54, None, False)
+    agent.addLayer("H1", 256, Sigmoid, False)
+    agent.addLayer("H2", 128, Sigmoid, False)
+    agent.addLayer("H3", 64, Sigmoid, False)
+    agent.addLayer("Output", 9, None, True)
+
+    ## Every 10 frames the agent gives an output to the engine.
+    agentActive = 60
+
+
     ## The object that needs to be grabbed and fondled
     polygon = Polygon(space, (10,10), (0,0), [[150, 100], [250, 100], [250, 200]])
 
-    # arm1 = Arm1(space, (250, 205))
-    # arm1.addJoint(100)
-    # arm1.addJoint(200, True)
+    arms = []
 
-    # arm2 = Arm1(space, (300, 250),2)
-    # arm2.addJoint(150)
-    # arm2.addJoint(100)
-    # arm2.addJoint(50, True)
+    arm1 = Arm1(space, (250, 250))
+    arm1.addJoint(100)
+    arm1.addJoint(50)
+    arm1.addJoint(50, True)
+
+    arm2 = Arm1(space, (750, 250),2)
+    arm2.addJoint(150)
+    arm2.addJoint(100)
+    arm2.addJoint(50, True)
 
 
-    arm3 = Arm1(space, (500, 500),3)
+    arm3 = Arm1(space, (500, 50),3)
+    arm3.addJoint(250)
     arm3.addJoint(150)
-    arm3.addJoint(75)
-    arm3.addJoint(50, True)
+    arm3.addJoint(100, True)
+
+    arms = [arm1, arm2, arm3]
 
 
     ## There is a problem. If we render every frame it looks janky. 
@@ -58,7 +78,6 @@ def run(window, space, width=WIDTH, height=HEIGHT):
     ## We also need to set a rate for the AI to run in the background. When the agent responds the physics engine will react.
 
     frameNumber = 0
-    flag = False
 
     while run:
         for event in pygame.event.get():
@@ -66,20 +85,32 @@ def run(window, space, width=WIDTH, height=HEIGHT):
                 run = False
                 break
 
+        if frameNumber%agentActive == 0:
+            inputVector = []
+            for arm in arms:
+                lTempData = arm.physicsToAgent()
+                inputVector.extend(lTempData["Angles"])
+                inputVector.extend(lTempData["Rates"])
+                inputVector.extend(lTempData["Positions"])
+            inputVector = np.array(inputVector)
+            rawOut = agent.forwardPass(inputVector)
+            print("Out:", rawOut)
+            ## Use the agents output to manimulate the arms.
+            k = 0
+            for arm in arms:
+                newAngles = []
+                for idx in range(len(arm.Objects)):
+                    newAngles.append((rawOut[k]+1)*(PI/2))
+                    k+=1 
+                arm.setAngles(newAngles)
+
         ## Render only some of the frames. Makes it more smoother.
         for x in range(PHYSICS_FPS):
             space.step(DT/float(PHYSICS_FPS))
 
-        if frameNumber > afterKFrames and not flag:
-            print("Setting angles")
-            # arm1.setAngles([0, 0.8])
-            # arm2.setAngles([3.14, 3.14, 3.14])
-            arm3.setAngles([1.6, 3.0, 0])
-            flag = not flag
-
-        # arm1.getAngles()
-        # arm2.getAngles()
-        arm3.getAngles() 
+        
+        for arm in arms:
+            arm.getAngles()
         polygon.draw(window)
         draw(space, window, draw_options)
         clock.tick(FPS)
