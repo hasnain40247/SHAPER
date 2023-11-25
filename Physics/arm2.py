@@ -1,7 +1,7 @@
 import pymunk
 from pymunk import SimpleMotor
 #from Physics.utils import *
-from math import atan2
+from math import atan2, sin, cos
 #from Physics.gripper import *
 #from Physics.armsection import *
 #from Physics.ball import *
@@ -135,21 +135,33 @@ class Arm1():
     def grab(self):
         ## Find the collision between the last arm segment and the polygon. 
         ## If collision present or distance is small then add a pin constrain on them.
-
         terminalArmSegment = self.Objects[-1]
 
 
     ## Inputs are between -1 and 1, convert it to 0 to 2PI
     ## Converts the agent's output to a format that the physics engine can work with.
-    def agentToPhysics(self):
+    def agentToPhysics(self, agentData):
         inputs = list(map(lambda x: ((x+1)/2.0)*2*PI, inputs))
         return inputs
-    
 
     ## Converts the data from the physcis engine to a format that can be processed by the agent
     ## Normalize the angles and the position of the bodies. Convert to radians if necessary.
     def physicsToAgent(self):
-        pass
+        agentInputs = dict()
+        agentInputs["Angles"] = []
+        agentInputs["Rates"] = []
+        agentInputs["Positions"] = []
+        for objIdx in range(len(self.Objects)):
+            obj = self.Objects[objIdx]["Object"]
+            mot = self.Objects[objIdx]["Motor"]
+            l = self.Objects[objIdx]["Length"]/2
+            ## The current angle of the arms wrt to the global XY plane
+            agentInputs["Angles"].append(obj.angle)
+            ## The rate at which the arms are moving
+            agentInputs["Rates"].append(mot.rate)
+            ## Gets the position of the endpoints of the arm.
+            agentInputs["Positions"].extend(centerToEndPoints(obj.position,l,obj.angle))
+        return agentInputs
 
     ## Set the expected angles.
     def setAngles(self, inputs):
@@ -163,10 +175,11 @@ class Arm1():
         self.diffCounter = [0]*len(self.Objects)
 
     ## Get the current angles
-    def getAngles(self):
+    def getAngles(self, update=True):
         for objectIdx in range(len(self.Objects)):
             self.CurrentAngles[objectIdx] = self.Objects[objectIdx]["Object"].angle
-        self.arbiterAgent()
+        if update:
+            self.arbiterAgent()
         #print("Current angle:", self.CurrentAngles, "Expected angle:", self.ExpectedAngles)
         return self.CurrentAngles
     
@@ -182,6 +195,11 @@ class Arm1():
                 continue
             self.diffCounter[objIdx] += diff[objIdx]
             self.Objects[objIdx]["Motor"].rate = P_*diff[objIdx] + D_*self.Objects[objIdx]["Motor"].rate + I_*self.diffCounter[objIdx]
+
+def centerToEndPoints(centerPos, length, angle):
+    return [centerPos[0]+length*cos(angle), centerPos[1]+length*sin(angle),
+            centerPos[0]-length*cos(angle), centerPos[1]-length*sin(angle)
+            ]
 
 
 if __name__ == "__main__":
