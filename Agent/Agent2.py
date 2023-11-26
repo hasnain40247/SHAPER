@@ -124,6 +124,8 @@ def crossover(agent1, agent2):
         layerDetails = agent1.layers[layerIdx]
         newAgent.addLayer(layerDetails["Name"], layerDetails["Size"], layerDetails["Activation"], layerDetails["Output"])
 
+    ## TODO FIX THIS PLEASE.
+    ## Looks like while creating a new child we are missing something.
     numOfMatrices = len(agent1.Objects)
     for matIdx in range(numOfMatrices):
         if np.random.random() > 0.5:
