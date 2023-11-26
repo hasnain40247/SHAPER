@@ -40,9 +40,9 @@ class Agent:
             print("Cannot resize a network once memory has been allocated. Delete and create a new agent.")
             return
         if len(self.layers) == 0 or activation == None:
-            self.layers.append({"Name": layerName, "Size":size, "Activation": Linear})
+            self.layers.append({"Name": layerName, "Size":size, "Activation": Linear, "Output": output})
         else:
-            self.layers.append({"Name": layerName, "Size":size, "Activation": activation})
+            self.layers.append({"Name": layerName, "Size":size, "Activation": activation, "Output": output})
         if output:
             self._createnetwork()
         
@@ -111,6 +111,45 @@ class Agent:
         out += "Length of Networks: " + str(len(self.network)) + "\n"
         out += "Length of Activations: " + str(len(self.activation)) + "\n"
         return out
+
+
+## Take two agents and returns a new agent that is the combination of both.
+## Each matrix is considered as an alle. Each parent contributes half of its alle.
+def crossover(agent1, agent2):
+    ## Assuming that agent1 and agent2 are of same dimensions.
+
+    ## Create a new agent.
+    newAgent = Agent()
+    for layerIdx in range(len(agent1.layers)):
+        layerDetails = agent1.layers[layerIdx]
+        newAgent.addLayer(layerDetails["Name"], layerDetails["Size"], layerDetails["Activation"], layerDetails["Output"])
+
+    numOfMatrices = len(agent1.Objects)
+    for matIdx in range(numOfMatrices):
+        if np.random.random() > 0.5:
+            newAgent.network[matIdx] = agent1.network[matIdx]
+        else:
+            newAgent.network[matIdx] = agent2.network[matIdx]
+
+    return newAgent
+
+## Take two agents and returns a new agent that is the combination of both.
+## Just averages the values of the weights.
+def crossoverAvg(agent1, agent2):
+    ## Assuming that agent1 and agent2 are of same dimensions.
+
+    ## Create a new agent.
+    newAgent = Agent()
+    for layerIdx in range(len(agent1.layers)):
+        layerDetails = agent1.layers[layerIdx]
+        newAgent.addLayer(layerDetails["Name"], layerDetails["Size"], layerDetails["Activation"], layerDetails["Output"])
+
+    numOfMatrices = len(agent1.Objects)
+    for matIdx in range(numOfMatrices):
+        newAgent.network[matIdx] = (agent1.network[matIdx]+agent2.network[matIdx])/2
+
+    return newAgent
+
 
 
 ## Just some testing code.
