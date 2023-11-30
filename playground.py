@@ -1,14 +1,13 @@
 import pymunk
 import pygame
 import pymunk.pygame_util
-from Agent.Agent2 import *
+from Agent.Agent import *
 from Physics.arm import *
-from Physics.arm2 import *
 from Physics.polygon import *
+from Physics.segment import *
 from Physics.utils import *
 
 PHYSICS_FPS = 25
-
 
 ## Setup the envirnment.
 def setup():
@@ -35,88 +34,70 @@ def run(window, space, width=WIDTH, height=HEIGHT):
     
     addFloor(space)
 
-    ## Make an agegnt.
-    agent = Agent()
-
-    ## Add all the layers as required.
-    agent.addLayer("Input", 54, None, False)
-    agent.addLayer("H1", 256, Sigmoid, False)
-    agent.addLayer("H2", 128, Sigmoid, False)
-    agent.addLayer("H3", 64, Sigmoid, False)
-    agent.addLayer("Output", 9, None, True)
-
-    ## Every 10 frames the agent gives an output to the engine.
-    agentActive = 60
-
+    # a = BoxSegment(space, (WALL_THICKNESS, HEIGHT-WALL_THICKNESS), (WALL_THICKNESS, WALL_THICKNESS), True)
+    # b = BoxSegment(space, (WALL_THICKNESS, WALL_THICKNESS), (WIDTH-WALL_THICKNESS, WALL_THICKNESS), False)
+    # c = BoxSegment(space, (WIDTH-WALL_THICKNESS, WALL_THICKNESS), (WIDTH-WALL_THICKNESS, HEIGHT-WALL_THICKNESS), True)
+    # d = BoxSegment(space, (WALL_THICKNESS, WIDTH-WALL_THICKNESS), (WIDTH-WALL_THICKNESS, HEIGHT-WALL_THICKNESS), False)
+    
 
     ## The object that needs to be grabbed and fondled
-    polygon = Polygon(space, (10,10), (0,0), [[150, 100], [250, 100], [250, 200]])
+    polygon = Polygon(space, 0, [[100, 100], [200, 100], [200, 200]])
 
     arms = []
 
-    arm1 = Arm1(space, (250, 250))
+    arm1 = Arm(space, (250, 250))
     arm1.addJoint(100)
     arm1.addJoint(50)
-    arm1.addJoint(50, True)
+    arm1.addJoint(50,rotation=0.6, end=True)
 
-    arm2 = Arm1(space, (750, 250),2)
+    arm2 = Arm(space, (350, 250),2)
     arm2.addJoint(150)
     arm2.addJoint(100)
-    arm2.addJoint(50, True)
+    arm2.addJoint(50,rotation=1.2, end=True)
 
 
-    arm3 = Arm1(space, (500, 50),3)
+    arm3 = Arm(space, (500, 50),3)
     arm3.addJoint(250)
     arm3.addJoint(150)
-    arm3.addJoint(100, True)
+    arm3.addJoint(100,rotation=0.6, end=True)
 
     arms = [arm1, arm2, arm3]
 
+    #arm.dropPolygon() ## Works
 
+    armData = {"Arm_1": (arm1, True), "Arm_2": (arm2, True), "Arm_3": (arm3, True)} ## modify this to grab stuff
+    collision = space.add_collision_handler(40, 20) #hard coded these since by default the collision type of arm and polygon is set to 20 and 40 respectively.
+    collision.begin = polygon.on_collision_arbiter_begin #arm is an object of class Arm1
+    
+    collisionWithBox = space.add_collision_handler(40, 50)
+    
     ## There is a problem. If we render every frame it looks janky. 
     ## Fix is to run the physics engine at 600Hz and render the stuff at 60Hz.
     ## We also need to set a rate for the AI to run in the background. When the agent responds the physics engine will react.
 
     frameNumber = 0
-
     while run:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
                 break
-
-        if frameNumber%agentActive == 0:
-            inputVector = []
-            for arm in arms:
-                lTempData = arm.physicsToAgent()
-                inputVector.extend(lTempData["Angles"])
-                inputVector.extend(lTempData["Rates"])
-                inputVector.extend(lTempData["Positions"])
-            inputVector = np.array(inputVector)
-            rawOut = agent.forwardPass(inputVector)
-            print("Out:", rawOut)
-            ## Use the agents output to manimulate the arms.
-            k = 0
-            for arm in arms:
-                newAngles = []
-                for idx in range(len(arm.Objects)):
-                    newAngles.append((rawOut[k]+1)*(PI/2))
-                    k+=1 
-                arm.setAngles(newAngles)
-
+        collision.data["polygon"] = polygon.body # polygon is an object of Polygon
+        collision.data["arms_data"] = armData # armData is a disctionary that contains the information about arms.
+       
         ## Render only some of the frames. Makes it more smoother.
         for x in range(PHYSICS_FPS):
             space.step(DT/float(PHYSICS_FPS))
 
-        
-        for arm in arms:
-            arm.getAngles()
         polygon.draw(window)
         draw(space, window, draw_options)
         clock.tick(FPS)
 
-        frameNumber += 1
+        if frameNumber > 110:
+            arm1.dropPolygon()
+            arm2.dropPolygon()
+            armData = {"Arm_1": (arm1, False), "Arm_2": (arm2, False), "Arm_3": (arm3, False)} ## modify this to grab stuff
 
+        frameNumber += 1
     pygame.quit()
 
 ## Only call this function when we need to render the objects. In most cases rendering it is not needed.
