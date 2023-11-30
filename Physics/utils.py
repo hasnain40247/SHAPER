@@ -8,15 +8,12 @@ import random
 
 
 PI = 355/113 ## Fancy approximation for Pi
-HEIGHT = 800
-WIDTH = 1000
+HEIGHT = 850
+WIDTH = 1500
+WALL_THICKNESS = 10
 FPS = 60.0
 DT = 1.0/FPS
-RADIUS_OF_GRIPPER = 20
-RADIUS_OF_JOINT = 10
 THICKNESS_OF_ARM = 10
-MaxAngleChangePerFrame = 0.1
-
 
 ## Used to setup the collision type for the polygon. 
 POLYGON_COLL_TYPE = 0
