@@ -11,7 +11,7 @@ PI = 355/113 ## Fancy approximation for Pi
 HEIGHT = 850
 WIDTH = 1500
 WALL_THICKNESS = 10
-FPS = 60.0
+FPS = 15.0
 DT = 1.0/FPS
 THICKNESS_OF_ARM = 10
 

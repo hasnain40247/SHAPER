@@ -1,4 +1,4 @@
-from Agent.Agent import *
+from Agent.agent import *
 from Physics.polygon import *
 from Physics.arm import *
 from Physics.utils import *
@@ -138,11 +138,11 @@ def playOne(agent, resource, scoringFunc , LowPassFilter=0.8, framesPerAgent=120
                 arm.agentToPhysics(newRates, 2.5)
 
                 ## Activate or deactivate the gripper.
-                if rawOut[k] > 0.0:
-                    armData["Arm_" + str(armIdx+1)][1] = True
-                else:
-                    armData["Arm_" + str(armIdx+1)][1] = False
-                    arm.dropPolygon()
+                # if rawOut[k] > 0.0:
+                #     armData["Arm_" + str(armIdx+1)][1] = True
+                # else:
+                #     armData["Arm_" + str(armIdx+1)][1] = False
+                #     arm.dropPolygon()
                 k += 1
 
         frameScore = scoringFunc(polygon, goalState)

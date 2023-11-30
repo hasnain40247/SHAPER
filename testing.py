@@ -1,7 +1,7 @@
 import pymunk
 import pygame
 import pymunk.pygame_util
-from Agent.Agent import *
+from Agent.agent import *
 from Physics.arm import *
 from Physics.arm import *
 from Physics.polygon import *
@@ -54,29 +54,30 @@ def run(window, space, path=None, width=WIDTH, height=HEIGHT):
 
 
     ## The object that needs to be grabbed and fondled
-    polygon = Polygon(space, 0.8, [[150, 100], [250, 100], [250, 200]])
+    polygon = Polygon(space, 0.8, [[600, 50], [680, 50], [600, 250]])
+
+    print("Current position:", polygon.getCurrentPosition())
 
     goalState = (
-            np.random.random()*2*PI, #Angle
+            0.0, #Angle
             150, 150, # poosition of the body
     )
 
     arms = []
 
-    arm1 = Arm(space, (250, 250))
-    arm1.addJoint(100)
-    arm1.addJoint(50)
-    arm1.addJoint(50, True)
+    arm1 = Arm(space, (200, 100))
+    arm1.addJoint(250)
+    arm1.addJoint(250)
+    arm1.addJoint(100, True)
 
-    arm2 = Arm(space, (750, 250),2)
-    arm2.addJoint(150)
-    arm2.addJoint(100)
-    arm2.addJoint(50, True)
+    arm2 = Arm(space, (800, 100),2)
+    arm2.addJoint(250)
+    arm2.addJoint(250)
+    arm2.addJoint(100, True)
 
-
-    arm3 = Arm(space, (500, 50),3)
+    arm3 = Arm(space, (1200, 100),3)
     arm3.addJoint(250)
-    arm3.addJoint(150)
+    arm3.addJoint(250)
     arm3.addJoint(100, True)
 
     arms = [arm1, arm2, arm3]
@@ -98,6 +99,8 @@ def run(window, space, path=None, width=WIDTH, height=HEIGHT):
 
 
     while run:
+        print("Current position:", polygon.getCurrentPosition())
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
@@ -128,7 +131,6 @@ def run(window, space, path=None, width=WIDTH, height=HEIGHT):
 
             ## Get the prediction from the agent.
             rawOut = lAgent.forwardPass(inputVector)
-            print("Output:", rawOut)
             ## Use the agents output to manipulate the arms.
             k = 0
             for armIdx, arm in enumerate(arms):
@@ -137,20 +139,19 @@ def run(window, space, path=None, width=WIDTH, height=HEIGHT):
                     newRates.append(rawOut[k])
                     k+=1 
                 ## Set the arm speeds
-                arm.agentToPhysics(newRates, 2)
+                #arm.agentToPhysics(newRates, 2)
 
                 ## Activate or deactivate the gripper.
-                if rawOut[k] > 0.0:
-                    armData["Arm_" + str(armIdx+1)][1] = True
-                else:
-                    armData["Arm_" + str(armIdx+1)][1] = False
-                    arm.dropPolygon()
+                # if rawOut[k] > 0.0:
+                #     armData["Arm_" + str(armIdx+1)][1] = True
+                # else:
+                #     armData["Arm_" + str(armIdx+1)][1] = False
+                #     arm.dropPolygon()
                 k += 1
 
-        ## Render only some of the frames. Makes it more smoother.
+        # Render only some of the frames. Makes it more smoother.
         for _ in range(PHYSICS_FPS):
             space.step(DT/float(PHYSICS_FPS))
-        
         
         polygon.draw(window)
         draw(space, window, draw_options)
@@ -168,4 +169,4 @@ def draw(space, window, draw_options):
 
 if __name__ == "__main__":
     window, space, draw_options = setup()
-    run(window, space, "./Test_1")
+    run(window, space)

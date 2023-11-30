@@ -1,12 +1,12 @@
-from Agent.Agent import *
+from Agent.agent import *
 from Physics.polygon import *
 from Physics.arm import *
 from utils import *
 from random import sample
 
-PopulationCount = 25
-ParentsCount = 5
-ChildrenCount = 20
+PopulationCount = 5
+ParentsCount = 2
+ChildrenCount = PopulationCount-ParentsCount
 
 SaveTimePeriod = 25
 
@@ -65,13 +65,14 @@ while True:
         Childeren.append([newChild, 0.0])
 
     Agents = []
+    Resources = []
+
     for idx in range(ChildrenCount):
         Childeren[idx][1] = 0.0
         Agents.append(Childeren[idx])
 
     for idx in range(ParentsCount):
         Parents[idx][1] = 0.0
-        Agents.append(Parents[idx])
-    
+        Agents.append(Parents[idx])    
     generationNumber+=1
         

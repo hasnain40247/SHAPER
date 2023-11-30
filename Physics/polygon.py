@@ -22,7 +22,6 @@ class Polygon():
         positionY = positionY/len(points)
 
         self.body = pymunk.Body()
-        self.body.position = positionX, positionY
         self.body.angle = originalAngle
         self.shape = pymunk.Poly(self.body, self.points)
         self.shape.density = 1
@@ -31,6 +30,8 @@ class Polygon():
 
         space.add(self.body, self.shape)
 
+    def setPosition(self, pos):
+        self.body.position = pos
 
     def draw(self, display, color=(255,255,255)):
         pygame.draw.polygon(display, color, list(map(convertCoordinartes, self.points)))
