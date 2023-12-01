@@ -14,6 +14,32 @@ WALL_THICKNESS = 10
 FPS = 15.0
 DT = 1.0/FPS
 THICKNESS_OF_ARM = 10
+WALLLEFT = "LeftWall"
+WALLRIGHT = "RightWall"
+WALLTOP = "TopWall"
+WALLBOTTOM = "BottomWall"
+
+
+def wallKeyToIdx(wallKey):
+    if wallKey == WALLLEFT: # Correct
+        return 0
+    if wallKey == WALLRIGHT: # Correct
+        return 2
+    if wallKey == WALLBOTTOM: #Correct
+        return 3
+    if wallKey == WALLTOP: # Correct
+        return 1
+    
+def oppositeWall(wallKey):
+    if wallKey == WALLLEFT:
+        return WALLRIGHT
+    if wallKey == WALLRIGHT:
+        return WALLLEFT
+    if wallKey == WALLTOP:
+        return WALLBOTTOM
+    if wallKey == WALLBOTTOM:
+        return WALLTOP
+    
 
 ## Used to setup the collision type for the polygon. 
 POLYGON_COLL_TYPE = 0

@@ -77,13 +77,20 @@ width, height = 690, 600
 
 
 def getRandomPositionForCannon():
-
-    return position
+    line = random.random()
+    if line < 0.25:
+        return 100 + random.random()*(WIDTH-100),100, WALLBOTTOM
+    elif line < 0.5:
+        return (WIDTH-100), 100 + random.random()*(HEIGHT-100), WALLLEFT
+    elif line < 0.75:
+        return 100 + random.random()*(WIDTH-100), (HEIGHT-100), WALLTOP
+    else: 
+        return 100, 100 + random.random()*(HEIGHT-100), WALLRIGHT
 
 ## If display is true the game will be displayed
 ## If the agent is true we use the given agent to play the game, else the game will without any inputs
 ## If path is not none we will load the weights from the disk.
-def play(display=True, agent=None, path=None):
+def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFullGameFunc= lambda:0):
     if agent != None and path != None:
         agent.loaad(path)
 
@@ -94,35 +101,26 @@ def play(display=True, agent=None, path=None):
     running = True
     font = pygame.font.SysFont("Arial", 16)
 
-    ### Physics stuff
+    ### Init the space
     space = pymunk.Space()
     space.gravity = 0, 1000
     draw_options = pymunk.pygame_util.DrawOptions(screen)
 
-    arm1 = Arm(space, (WIDTH/2, 150))
-    arm1.addJoint(200)
+    ### Init the arms
+    arm1 = Arm(space, (WIDTH/2, HEIGHT/2))
+    arm1.addJoint(150)
     arm1.addJoint(100)
     arm1.addJoint(50, end=True)
 
 
-    # walls - the left-top-right walls
+    ### Init the box.
+    ### Left, Top, Right, Bottom
     static: List[pymunk.Shape] = [
         pymunk.Segment(space.static_body, (50, HEIGHT-50), (50, 50), 5),
         pymunk.Segment(space.static_body, (50, 50), (WIDTH-50, 50), 5),
         pymunk.Segment(space.static_body, (WIDTH-50, 50), (WIDTH-50, HEIGHT-50), 5),
         pymunk.Segment(space.static_body, (50, HEIGHT-50), (WIDTH-50, HEIGHT - 50), 5),
     ]
-
-    ## Removed for now
-    # b2 = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
-    # static.append(pymunk.Circle(b2, 30))
-    # b2.position = 300, 200
-
-    for s in static:
-        s.friction = 1.0
-        s.group = 1
-    #space.add(b2, *static)
-    space.add(*static)
 
     # "Cannon" that can fire arrows
     cannon_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
@@ -132,17 +130,54 @@ def play(display=True, agent=None, path=None):
     cannon_body.position = 100, 500
     space.add(cannon_body, cannon_shape)
 
+    ## Set the cannon position to a random position on the perimeter of the area.
+    originalCannonPos = getRandomPositionForCannon()
+    cannon_body.position = originalCannonPos[:-1]
+
+    ## Set the target wall. This is based on the posiition of the cannon.
+    ## The target wall is the wall that the polygons will try to hit
+    targetWall = originalCannonPos[-1]
+    static[wallKeyToIdx(targetWall)].color = (255, 0, 0, 255)
+
+    ## Set the safe wall.
+    ## This is the wall that the agent will try and deflect the arms to.
+    safeWall = oppositeWall(targetWall)
+    static[wallKeyToIdx(safeWall)].color = (255, 0, 0, 255)
+
+    ## Set the other two walls.
+    otherWalls = static.copy()
+    otherWalls.remove(static[wallKeyToIdx(safeWall)])
+    otherWalls.remove(static[wallKeyToIdx(targetWall)])
+
+    ## Add the walls to the space
+    for s in static:
+        s.friction = 1.0
+        s.group = 1
+    space.add(*static)
+
+    ## The polygon that will be firied.
     arrow_body, arrow_shape = createPolygon()
     space.add(arrow_body, arrow_shape)
 
+    ## Active lisit of flying polygons.
     flying_arrows: List[pymunk.Body] = []
+
+    ## The handler will be responsible for collisions and scoring the agent.
     handler = space.add_collision_handler(0, 1)
+
+    ## Set the cannon and the bullets.
     handler.data["flying_arrows"] = flying_arrows
     handler.data["cannon"] = cannon_body
+
+    ## Set the wall discription
     handler.data["wallL"] = static[0]
     handler.data["wallT"] = static[1]
     handler.data["wallR"] = static[2]
     handler.data["wallB"] = static[3]
+
+    ## Init the score as 0 for all agents
+    handler.data["score"] = 0.0
+
     handler.post_solve = post_solve_arrow_hit
 
     start_time = 0
@@ -155,14 +190,7 @@ def play(display=True, agent=None, path=None):
             ):
                 running = False
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                start_time = pygame.time.get_ticks()
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-                pygame.image.save(screen, "arrows.png")
-            elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-                end_time = pygame.time.get_ticks()
-
-                diff = end_time - start_time
-                power = max(min(diff, 1000), 10) * 13.5
+                power = 5000 + random.random()*35000
                 impulse = power * Vec2d(1, 0)
                 impulse = impulse.rotated(arrow_body.angle)
                 arrow_body.body_type = pymunk.Body.DYNAMIC
@@ -170,9 +198,11 @@ def play(display=True, agent=None, path=None):
 
                 # space.add(arrow_body)
                 flying_arrows.append(arrow_body)
-
+                handler.data["flying_arrows"] = flying_arrows
                 arrow_body, arrow_shape = createPolygon()
                 space.add(arrow_body, arrow_shape)
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+                pygame.image.save(screen, "arrows.png")
 
 
         keys = pygame.key.get_pressed()
@@ -208,7 +238,7 @@ def play(display=True, agent=None, path=None):
             if agent != None:
                 rawOut = agent.forwardPass(inputVector)
                 rawOut = rawOut[:-1]
-                arm1.agentToPhysics(rawOut, maxSpeed=1.2)
+                #arm1.agentToPhysics(rawOut, maxSpeed=1.2)
 
 
             drag_constant = 0.0002
