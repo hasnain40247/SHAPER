@@ -51,14 +51,18 @@ def post_solve_arrow_hit(arbiter, space, data):
 
         if a == data["SafeWall"]:
             data["isArrowStopped"] = True
+            space.remove(b)
             #print("Hit a safe wall. Score the agent")
         
         if a == data["TargetWall"]:
             data["isArrowStopped"] = True
+            data["score"] -= 1.0
+            space.remove(b)
             #print("Hit a target wall. Punish the aagent")
 
         if a in data["OtherWalls"]:
             data["isArrowStopped"] = True
+            space.remove(b)
             #print("Hit a unnecessary wall. No points")
 
         if a in data["ArmShapes"]:
@@ -69,6 +73,8 @@ def post_solve_arrow_hit(arbiter, space, data):
         if a == data["Cannon"]:
             data["isArrowStopped"] = True
             #print("Perfect strike. Give a huge reward.")
+
+        
 
         #data["flying_arrows"].remove(arrow_body)
         ## Have a switch on the other bodies.
@@ -88,25 +94,26 @@ def dataForAgent(polygon):
         polygon.position[1],
         polygon.angle,
         polygon.angular_velocity 
+        ## Add velocity too
     ]
 
 
 offset = 150
 def getRandomPositionForCannon():
     line = random.random()
-    if line < 0.25:
-        return offset + random.random()*(WIDTH-offset),offset, WALLBOTTOM
-    elif line < 0.5:
+    # if line < 0.25:
+    #     return offset + random.random()*(WIDTH-offset),offset, WALLBOTTOM
+    if line < 0.5:
         return (WIDTH-offset), offset + random.random()*(HEIGHT-offset), WALLLEFT
-    elif line < 0.75:
-        return offset + random.random()*(WIDTH-offset), (HEIGHT-offset), WALLTOP
+    # elif line < 0.75:
+    #     return offset + random.random()*(WIDTH-offset), (HEIGHT-offset), WALLTOP
     else: 
         return offset, offset + random.random()*(HEIGHT-offset), WALLRIGHT
 
 ## If display is true the game will be displayed
 ## If the agent is true we use the given agent to play the game, else the game will without any inputs
 ## If path is not none we will load the weights from the disk.
-def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFullGameFunc= lambda:0):
+def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFullGameFunc= lambda:0, pipeCom=None):
     maxFrames = 60*120
 
     if agent != None and path != None:
@@ -206,7 +213,7 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
 
     frameNumber = 0
     activePolygon = None
-    start_time = 0
+    gammaCorrection = 20*(PI/180)
     while running:
         if frameNumber > maxFrames:
             running = False
@@ -221,9 +228,16 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
                 ):
                     running = False
         if frameNumber%100 == 0:
-
             ## Choose a random angle. But make sure it is aimed at the target wall.
-            cannon_body.angle = random.random()*2*PI
+            firingPosition = cannon_body.position
+            
+            angle1 = (static[wallKeyToIdx(targetWall)].a - firingPosition).angle  
+            angle2 = (static[wallKeyToIdx(targetWall)].b - firingPosition).angle  
+
+            minAngle = min(angle1, angle2) 
+            maxAngle = max(angle1, angle2)
+
+            cannon_body.angle = minAngle + random.random()*(maxAngle-minAngle) + gammaCorrection
             # move the unfired arrow together with the cannon
             arrow_body.position = cannon_body.position + Vec2d(
                 cannon_shape.radius + 40, 0
@@ -240,7 +254,7 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
             # space.add(arrow_body)
             flying_arrows.append(arrow_body)
             handler.data["flying_arrows"] = flying_arrows
-            activePolygon = arrow_body
+            activePolygon = flying_arrows[-1]
             arrow_body, arrow_shape = createPolygon()
             space.add(arrow_body, arrow_shape)
 
@@ -253,6 +267,7 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
             armdData = arm1.physicsToAgent()
             for key in armdData:
                 inputVector += armdData[key]
+            ## TODO Add wall data
             inputVector = np.array(inputVector)
             if agent != None:
                 rawOut = agent.forwardPass(inputVector)
@@ -297,8 +312,10 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
         if display:
             clock.tick(fps)
         frameNumber += 1
-    return handler.data["score"]
-
+    if pipeCom==None:
+        return handler.data["score"]
+    else:
+        pipeCom.send(handler.data["score"])
 
 PopulationCount = 10
 ChildrenCount = 6
@@ -317,10 +334,9 @@ def playGivenAgent(path):
     lAgent.load(path)
     play(display=True, agent=lAgent)
 
-#playGivenAgent("./TEST_24")
+#sys.exit(playGivenAgent("./TEST_74"))
 
-from matplotlib import pyplot as plt
-if __name__ == "__main__":
+def singleMain():
     Agents = []
     avgScores = []
     for _ in range(PopulationCount):
@@ -336,7 +352,71 @@ if __name__ == "__main__":
     generation = 0
     while True:
         for idx in tqdm(range(PopulationCount)):
-            Agents[idx][1] = play(display=False, agent=Agents[idx][0])
+            Agents[idx][1] = play(display=True, agent=Agents[idx][0])
+
+        Agents.sort(key= lambda x: x[1])
+
+        if (generation+1)%25 ==0:
+            Agents[-1][0].save("Test_" + str(generation))
+
+        avgScore = sum(list(map(lambda x: x[1], Agents)))/len(Agents)
+        avgScores.append(avgScore)
+        print("Scores: ", list(map(lambda x: x[1], Agents)),
+              "Average score:", avgScore   
+            )
+
+        Parents = Agents[-ParentsCount:]
+        Children = []
+
+        for idx in range(ChildrenCount):
+            lParents = random.sample(Parents, 2)
+            lNewChild = crossover(*list(map(lambda x: x[0], lParents)))
+            ## Increase the mutation
+            lNewChild.mutate()
+            Children.append([lNewChild, 0.0])
+
+        Agents = []
+        Agents = Parents + Children
+        generation += 1
+
+        if generation%10 == 0:
+            plt.plot(avgScores)
+            plt.show()
+
+
+
+def multiProcessingMain():
+    import multiprocessing as mp
+
+    Agents = []
+    avgScores = []
+
+    for _ in range(PopulationCount):
+        lAgent = Agent()
+        lAgent.addLayer("Input", 22, None, False)
+        lAgent.addLayer("H0", 512, Linear, False)
+        lAgent.addLayer("H1", 256, Sigmoid, False)
+        lAgent.addLayer("H2", 128, TanH, False)
+        lAgent.addLayer("H3", 64, Sigmoid, False)
+        lAgent.addLayer("Output", 4, None, True)
+        Agents.append([lAgent, 0.0])
+
+    generation = 0
+    while True:
+        pipes = []
+        processes = []
+
+        for idx in range(PopulationCount):
+            p_conn, c_conn = mp.Pipe()
+            pipes.append([p_conn, c_conn])
+            process = mp.Process(target=play, args=(False, Agents[idx][0], None, None, None, c_conn,))
+            process.start()
+            processes.append(process)
+
+        for idx in range(PopulationCount):
+            p_conn = pipes[idx][0]
+            Agents[idx][1] = p_conn.recv()
+            processes[idx].join()
 
         Agents.sort(key= lambda x: x[1])
 
@@ -365,3 +445,7 @@ if __name__ == "__main__":
         if generation%10 == 0:
             plt.plot(avgScores)
             plt.show()
+
+from matplotlib import pyplot as plt
+if __name__ == "__main__":
+    singleMain()
