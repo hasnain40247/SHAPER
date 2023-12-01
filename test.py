@@ -46,14 +46,31 @@ def post_solve_arrow_hit(arbiter, space, data):
         position = arbiter.contact_point_set.points[0].point_a
         b.collision_type = 0
         b.group = 1
+        b.color = (255, 255, 0, 255)
         other_body = a.body
         arrow_body = b.body
 
-        print(data["wallL"])
-
-        if a == data["wallL"]:
-            print("Wall left")
+        if a == data["SafeWall"]:
+            data["isArrowStopped"] = True
+            print("Hit a safe wall. Score the agent")
         
+        if a == data["TargetWall"]:
+            data["isArrowStopped"] = True
+            print("Hit a target wall. Punish the aagent")
+
+        if a in data["OtherWalls"]:
+            data["isArrowStopped"] = True
+            print("Hit a unnecessary wall. No points")
+
+        if a in data["ArmShapes"]:
+            data["isArrowStopped"] = True
+            print("Hit an arm section. Give some score.")
+
+        if a == data["Cannon"]:
+            data["isArrowStopped"] = True
+            print("Perfect strike. Give a huge reward.")
+
+        #data["flying_arrows"].remove(arrow_body)
         ## Have a switch on the other bodies.
         ## Give score based on if the robot was able to deflect the arraow.
         ## High score to hit the red ball and stuff
@@ -112,7 +129,6 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
     arm1.addJoint(100)
     arm1.addJoint(50, end=True)
 
-
     ### Init the box.
     ### Left, Top, Right, Bottom
     static: List[pymunk.Shape] = [
@@ -125,7 +141,7 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
     # "Cannon" that can fire arrows
     cannon_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
     cannon_shape = pymunk.Circle(cannon_body, 25)
-    cannon_shape.sensor = True
+    #cannon_shape.sensor = True
     cannon_shape.color = (255, 50, 50, 255)
     cannon_body.position = 100, 500
     space.add(cannon_body, cannon_shape)
@@ -142,7 +158,7 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
     ## Set the safe wall.
     ## This is the wall that the agent will try and deflect the arms to.
     safeWall = oppositeWall(targetWall)
-    static[wallKeyToIdx(safeWall)].color = (255, 0, 0, 255)
+    static[wallKeyToIdx(safeWall)].color = (255, 0, 255, 255)
 
     ## Set the other two walls.
     otherWalls = static.copy()
@@ -170,18 +186,26 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
     handler.data["cannon"] = cannon_body
 
     ## Set the wall discription
-    handler.data["wallL"] = static[0]
-    handler.data["wallT"] = static[1]
-    handler.data["wallR"] = static[2]
-    handler.data["wallB"] = static[3]
+    handler.data["TargetWall"] = static[wallKeyToIdx(targetWall)]
+    handler.data["SafeWall"] = static[wallKeyToIdx(safeWall)]
+    handler.data["OtherWalls"] = otherWalls
 
+    ## Add the arm shape to the handler's data.
+    handler.data["ArmShapes"] = [x["Shape"] for x in arm1.Objects]
+    handler.data["Cannon"] = cannon_shape
     ## Init the score as 0 for all agents
     handler.data["score"] = 0.0
 
+    handler.data["isArrowStopped"] = True
+
     handler.post_solve = post_solve_arrow_hit
 
+
+    activePolygon = None
     start_time = 0
     while running:
+        if handler.data["isArrowStopped"]:
+            activePolygon = None
         for event in pygame.event.get():
             if (
                 event.type == pygame.QUIT
@@ -190,32 +214,23 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
             ):
                 running = False
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                power = 5000 + random.random()*35000
-                impulse = power * Vec2d(1, 0)
-                impulse = impulse.rotated(arrow_body.angle)
-                arrow_body.body_type = pymunk.Body.DYNAMIC
-                arrow_body.apply_impulse_at_world_point(impulse, arrow_body.position)
+                if handler.data["isArrowStopped"]:
+                    power = 5000 + random.random()*15000
+                    impulse = power * Vec2d(1, 0)
+                    impulse = impulse.rotated(arrow_body.angle)
+                    arrow_body.body_type = pymunk.Body.DYNAMIC
+                    arrow_body.apply_impulse_at_world_point(impulse, arrow_body.position)
 
-                # space.add(arrow_body)
-                flying_arrows.append(arrow_body)
-                handler.data["flying_arrows"] = flying_arrows
-                arrow_body, arrow_shape = createPolygon()
-                space.add(arrow_body, arrow_shape)
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-                pygame.image.save(screen, "arrows.png")
+                    # space.add(arrow_body)
+                    flying_arrows.append(arrow_body)
+                    handler.data["flying_arrows"] = flying_arrows
+                    activePolygon = flying_arrows
+                    arrow_body, arrow_shape = createPolygon()
+                    space.add(arrow_body, arrow_shape)
 
-
-        keys = pygame.key.get_pressed()
-
-        speed = 2.5
-        if keys[pygame.K_UP]:
-            cannon_body.position += Vec2d(0, 1) * speed
-        if keys[pygame.K_DOWN]:
-            cannon_body.position += Vec2d(0, -1) * speed
-        if keys[pygame.K_LEFT]:
-            cannon_body.position += Vec2d(-1, 0) * speed
-        if keys[pygame.K_RIGHT]:
-            cannon_body.position += Vec2d(1, 0) * speed
+                    ## Indicates a polygon is still in flight.
+                    handler.data["isArrowStopped"] = False
+                    
 
         mouse_position = pymunk.pygame_util.from_pygame(
             Vec2d(*pygame.mouse.get_pos()), screen
