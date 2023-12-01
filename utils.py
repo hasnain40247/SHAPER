@@ -102,6 +102,10 @@ def playOne(agent, resource, scoringFunc , LowPassFilter=0.8, framesPerAgent=120
     score = 0
     frameNumber = 0
     while frameNumber < framesPerAgent:
+
+        collision.data["polygon"] = polygon.body # polygon is an object of Polygon
+        collision.data["arms_data"] = armData # armData is a disctionary that contains the information about arms.
+
         if frameNumber%agentActive == 0:
             ## Agent only controls the arm every n frames.
             inputVector = []

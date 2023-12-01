@@ -21,7 +21,7 @@ class Polygon():
         positionX = positionX/len(points)
         positionY = positionY/len(points)
 
-        self.body = pymunk.Body()
+        self.body = pymunk.Body(body_type=pymunk.Body.DYNAMIC)
         self.body.angle = originalAngle
         self.shape = pymunk.Poly(self.body, self.points)
         self.shape.density = 1
@@ -70,8 +70,9 @@ class Polygon():
                 armObjKey = key
 
         try:
+            print("Handeling collision for", armObjKey)
             if data.get("arms_data")[armObjKey][1]:
-                armObject.grab(contact_point,polygon)
+                data.get("arms_data")[armObjKey][0].grab(contact_point,polygon)
         except KeyError:
             return True
         except Exception as e:

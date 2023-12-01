@@ -61,7 +61,7 @@ class Arm():
 
             ## Create the shape for the object.
             newArmShape = pymunk.Poly.create_box(newArmObject, (ARM_WIDTH, length))
-            newArmShape.color = 0, 0, 0, 100
+            newArmShape.color = 255, 255, 255, 0
 
             ## Add constrains and motors to the bodies.
             newJoint = pymunk.PinJoint(newArmObject, newAnchor, (0, -length/2), (0, 0))
@@ -101,7 +101,7 @@ class Arm():
 
             ## Create the shape for the object.
             newArmShape = pymunk.Poly.create_box(newArmObject, (ARM_WIDTH, length))
-            newArmShape.color = 0, 0, 0, 100
+            newArmShape.color = 255, 255, 255, 0
 
             ## Add constrains and motors to the bodies.
             newJoint = pymunk.PinJoint(newArmObject, prevBody, (0, -length/2), (0, prevLength/2))
@@ -125,7 +125,7 @@ class Arm():
         
    
         if end:
-            self.Objects[-1]["Shape"].collision_type=collision_type
+            #self.Objects[-1]["Shape"].collision_type=collision_type
          
 
             self.complete = True
@@ -192,19 +192,6 @@ class Arm():
         #print("Current angle:", self.CurrentAngles, "Expected angle:", self.ExpectedAngles)
         return self.CurrentAngles
     
-    # Once we get the data from the agent we need the physics engine to execute it.
-    # This function uses a simple PID system to achieve that. 
-    # DIFF = (EXPECTED - CURRENT)
-    def arbiterAgent(self):
-        if len(self.ExpectedAngles) == 0:
-            return
-        diff = list(map(lambda x: x[1]-x[0], zip(self.CurrentAngles, self.ExpectedAngles)))
-        for objIdx in range(len(self.Objects)):
-            if diff[objIdx] < 10**-6:
-                continue
-            self.diffCounter[objIdx] += diff[objIdx]
-            self.Objects[objIdx]["Motor"].rate = P_*diff[objIdx] + D_*self.Objects[objIdx]["Motor"].rate + I_*self.diffCounter[objIdx]
-
     ## Called by the collision handler.
     def grab(self,anchor,polygon):
         if self.pinJoint is None and self.Objects[-1]["Object"] is not None:

@@ -54,9 +54,7 @@ def run(window, space, path=None, width=WIDTH, height=HEIGHT):
 
 
     ## The object that needs to be grabbed and fondled
-    polygon = Polygon(space, 0.8, [[600, 50], [680, 50], [600, 250]])
-
-    print("Current position:", polygon.getCurrentPosition())
+    polygon = Polygon(space=space, originalAngle=0.8, points=[[600, 50], [680, 50], [600, 250]])
 
     goalState = (
             0.0, #Angle
@@ -99,7 +97,9 @@ def run(window, space, path=None, width=WIDTH, height=HEIGHT):
 
 
     while run:
-        print("Current position:", polygon.getCurrentPosition())
+
+        collision.data["polygon"] = polygon.body # polygon is an object of Polygon
+        collision.data["arms_data"] = armData # armData is a disctionary that contains the information about arms.
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -139,9 +139,9 @@ def run(window, space, path=None, width=WIDTH, height=HEIGHT):
                     newRates.append(rawOut[k])
                     k+=1 
                 ## Set the arm speeds
-                #arm.agentToPhysics(newRates, 2)
+                arm.agentToPhysics(newRates, 2)
 
-                ## Activate or deactivate the gripper.
+                # Activate or deactivate the gripper.
                 # if rawOut[k] > 0.0:
                 #     armData["Arm_" + str(armIdx+1)][1] = True
                 # else:
