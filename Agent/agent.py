@@ -122,11 +122,21 @@ class Agent:
             self.network[idx] = (self.network[idx] - np.min(self.network[idx]))/(np.max(self.network[idx]) - np.min(self.network[idx]))
     
     ## Adds randomness to the network and normalizes the values.
-    def mutate(self, eta=0.01):
-        for idx in range(len(self.network)):
-            rand = (np.random.rand(*self.network[idx].shape)-0.5)*2*eta
-            self.network[idx] = self.network[idx] + rand
-            self.network[idx] = (self.network[idx] - np.min(self.network[idx]))/(np.max(self.network[idx]) - np.min(self.network[idx]))
+    def mutate(self, eta=0.1):
+        for matIdx in range(len(self.network)):
+            shape = self.network[matIdx].shape
+            agentVec = vectorize(self.network[matIdx])
+
+            for _ in range(int(eta*agentVec.shape[0])):
+                p1 = random.randint(0, agentVec.shape[0]-1)
+                p2 = random.randint(0, agentVec.shape[0]-1)
+
+                t = agentVec[p1]
+                agentVec[p1] = agentVec[p2]
+                agentVec[p2] = t
+            newMat = vecToMat(agentVec, shape)
+            self.network[matIdx] = newMat
+
 
     ## Just to print the network in a nice way.
     def __repr__(self) -> str:
@@ -141,7 +151,7 @@ class Agent:
 
 ## Take two agents and returns a new agent that is the combination of both.
 ## Each matrix is considered as an alle. Each parent contributes half of its alle.
-def crossover(agent1, agent2):
+def uniformCrossover(agent1, agent2):
     ## Assuming that agent1 and agent2 are of same dimensions.
 
     ## Create a new agent.
@@ -170,6 +180,33 @@ def crossover(agent1, agent2):
 
     return newAgent
 
+
+## Take two agents and returns a new agent that is the combination of both.
+## Each matrix is considered as an alle. Each parent contributes half of its alle.
+def singlePointCrossover(agent1, agent2):
+    ## Assuming that agent1 and agent2 are of same dimensions.
+
+    ## Create a new agent.
+    newAgent = Agent()
+    for layerIdx in range(len(agent1.layers)):
+        layerDetails = agent1.layers[layerIdx]
+        newAgent.addLayer(layerDetails["Name"], layerDetails["Size"], layerDetails["Activation"], layerDetails["Output"])
+
+    ## TODO FIX THIS PLEASE.
+    ## Looks like while creating a new child we are missing something.
+    numOfMatrices = len(agent1.network)
+    for matIdx in range(numOfMatrices):
+        shape = agent1.network[matIdx].shape
+        agent1Vec = vectorize(agent1.network[matIdx])
+        agent2Vec = vectorize(agent2.network[matIdx])
+
+        crossOverPoint = random.randint(0, agent1Vec.shape[0]-1)
+        newVector = np.concatenate([agent1Vec[:crossOverPoint], agent2Vec[crossOverPoint:]])
+        newMat = vecToMat(newVector, shape)
+        newAgent.network[matIdx] = newMat
+
+    return newAgent
+
 ## Take two agents and returns a new agent that is the combination of both.
 ## Just averages the values of the weights.
 def crossoverAvg(agent1, agent2):
@@ -193,12 +230,26 @@ if __name__ == "__main__":
     a = Agent()
 
     ## Add all the layers as required.
-    a.addLayer("Input", 24, None, False)
-    a.addLayer("H1", 100, Linear, False)
+    a.addLayer("Input", 5, None, False)
+    a.addLayer("H1", 4, Linear, False)
     a.addLayer("Output", 3, Linear, True)
 
+    ## Make an agegnt.
+    b = Agent()
+
+    ## Add all the layers as required.
+    b.addLayer("Input", 5, None, False)
+    b.addLayer("H1", 4, Linear, False)
+    b.addLayer("Output", 3, Linear, True)
+
+    kid = singlePointCrossover(a,b)
+
     for _ in range(100):
-        input = np.random.uniform(high=1,low=-1,size=(1,24))
-        output = a.forwardPass(input, v=False)
-        output = np.clip(output, a_min=-10, a_max=10)
-        print(output.shape, output)
+        input = np.random.uniform(low=-1,high=1, size=5)
+        output = kid.forwardPass(input)
+        print(output)
+
+
+    print(kid.network[0])
+    kid.mutate()
+    print(kid.network[0])

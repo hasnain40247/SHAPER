@@ -48,6 +48,15 @@ def stick_arrow_to_target(space, arrow_body, target_body, position, flying_arrow
         pass
 
 
+## Using this alone cause the bot to become a properllor or vibrator.
+def scoreOnlyOnArmContact(collisionShape, arrowShape, data):
+    if collisionShape in data["ArmShapes"]:
+        return +1.0
+    return 0.0
+
+def scoreOnSafeWallHit(collisionShape, arrowShape, data):
+    pass
+
 def post_solve_arrow_hit(arbiter, space, data):
     if arbiter.total_impulse.length > 300:
         a, b = arbiter.shapes
@@ -58,13 +67,15 @@ def post_solve_arrow_hit(arbiter, space, data):
         other_body = a.body
         arrow_body = b.body
 
+        data["score"] += scoreOnlyOnArmContact(a, b, data)
+
         if a == data["SafeWall"]:
             space.remove(b)
             data["isThereAFlyingPolygon"] = False
             #print("Hit a safe wall. Score the agent")
         
         if a == data["TargetWall"]:
-            data["score"] -= 1.0
+            #data["score"] -= 1.0
             space.remove(b)
             data["isThereAFlyingPolygon"] = False
             #print("Hit a target wall. Punish the aagent")
@@ -76,25 +87,11 @@ def post_solve_arrow_hit(arbiter, space, data):
 
         if a in data["ArmShapes"]:
             #print("Hit an arm section. Give some score.")
-            data["score"] += 1.0
-
+            pass
         if a == data["Cannon"]:
             print("Perfect strike. Give a huge reward.")
 
         
-
-        #data["flying_arrows"].remove(arrow_body)
-        ## Have a switch on the other bodies.
-        ## Give score based on if the robot was able to deflect the arraow.
-        ## High score to hit the red ball and stuff
-
-        # space.add_post_step_callback(
-        #     stick_arrow_to_target,
-        #     arrow_body,
-        #     other_body,
-        #     position,
-        #     data["flying_arrows"],
-        # )
 def dataForAgent(polygon):
     return [
         polygon.position[0]/WIDTH,
@@ -145,8 +142,8 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
 
     ### Init the arms
     arm1 = Arm(space, (WIDTH/2, HEIGHT/2))
-    arm1.addJoint(150)
-    arm1.addJoint(100)
+    arm1.addJoint(175)
+    arm1.addJoint(125)
     arm1.addJoint(50, end=True)
 
     ### Init the box.
@@ -293,7 +290,6 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
             if agent != None:
                 rawOut = agent.forwardPass(inputVector)
                 output = np.clip(rawOut, a_min=-10, a_max=10)
-                print(output)
                 arm1.agentToPhysics(output, maxSpeed=1.2)
 
 
@@ -380,8 +376,7 @@ def singleMain():
 
         for idx in range(ChildrenCount):
             lParents = random.sample(Parents, 2)
-            lNewChild = crossover(*list(map(lambda x: x[0], lParents)))
-            ## Increase the mutation
+            lNewChild = singlePointCrossover(*list(map(lambda x: x[0], lParents)))
             lNewChild.mutate()
             Children.append([lNewChild, 0.0])
 
@@ -438,7 +433,7 @@ def multiProcessingMain():
 
         for idx in range(ChildrenCount):
             lParents = random.sample(Parents, 2)
-            lNewChild = crossover(*list(map(lambda x: x[0], lParents)))
+            lNewChild = singlePointCrossover(*list(map(lambda x: x[0], lParents)))
             lNewChild.mutate()
             Children.append([lNewChild, 0.0])
 
@@ -452,4 +447,7 @@ def multiProcessingMain():
 
 from matplotlib import pyplot as plt
 if __name__ == "__main__":
-    singleMain()
+    try:
+        singleMain()
+    except KeyboardInterrupt:
+        sys.exit()
