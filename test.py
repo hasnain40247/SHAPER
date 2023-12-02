@@ -104,17 +104,18 @@ def dataForAgent(polygon):
     ]
 
 
-offset = 100
+offset = 300
 def getRandomPositionForCannon():
     line = random.random()
+
     # if line < 0.25:
     #     return offset + random.random()*(WIDTH-offset),offset, WALLBOTTOM
     if line < 0.5:
-        return (WIDTH-offset), offset + random.random()*(HEIGHT-offset), WALLLEFT
+        return (WIDTH-offset), random.randint(offset, HEIGHT-offset), WALLLEFT
     # elif line < 0.75:
     #     return offset + random.random()*(WIDTH-offset), (HEIGHT-offset), WALLTOP
     else: 
-        return offset, offset + random.random()*(HEIGHT-offset), WALLRIGHT
+        return offset, random.randint(offset, HEIGHT-offset), WALLRIGHT
 
 ## If display is true the game will be displayed
 ## If the agent is true we use the given agent to play the game, else the game will without any inputs
@@ -236,22 +237,14 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
         if not handler.data["isThereAFlyingPolygon"]:
             ## Choose a random angle. But make sure it is aimed at the target wall.
 
-            # print(cannon_body.position.x - static[wallKeyToIdx(targetWall)].a.x)
-            if cannon_body.position.x - static[wallKeyToIdx(targetWall)].a.x < 0:
-                lowerLimit = np.arcsin(np.abs(HEIGHT - cannon_body.position.y)/ np.sqrt((cannon_body.position.x - static[wallKeyToIdx(targetWall)].a.x)**2 + (HEIGHT - cannon_body.position.y)**2))
-                upperLimit = np.arcsin((cannon_body.position.y)/ (np.sqrt((cannon_body.position.x - static[wallKeyToIdx(targetWall)].a.x)**2 + (HEIGHT - cannon_body.position.y)**2)))
-                cannon_body.angle = np.random.uniform(-lowerLimit + gammaCorrection,upperLimit - gammaCorrection)
-            else:
-                lowerLimit = np.arcsin(np.abs(HEIGHT - cannon_body.position.y)/ np.sqrt((cannon_body.position.x)**2 + (HEIGHT - cannon_body.position.y)**2))
-                upperLimit = np.arcsin((cannon_body.position.y)/ (np.sqrt((cannon_body.position.x)**2 + (HEIGHT - cannon_body.position.y)**2)))
-                cannon_body.angle =np.random.uniform(-PI + lowerLimit + gammaCorrection, 3*PI/2 - upperLimit - gammaCorrection)
-            # firingPosition = cannon_body.position
-            # angle1 = (static[wallKeyToIdx(targetWall)].a - firingPosition).angle  
-            # angle2 = (static[wallKeyToIdx(targetWall)].b - firingPosition).angle  
-            # minAngle = min(angle1, angle2) 
-            # maxAngle = max(angle1, angle2)
+            ## Choose a random angle. But make sure it is aimed at the target wall.
 
-            # lRandomangle = minAngle + random.random()*(maxAngle-minAngle) + gammaCorrection
+            if targetWall == WALLLEFT:       
+                cannon_body.angle = DegreesToRads(random.randint(160, 220))
+            if targetWall == WALLRIGHT:       
+                cannon_body.angle = DegreesToRads(random.randint(-60, 20))
+            
+
             # move the unfired arrow together with the cannon
             arrow_body.position = cannon_body.position + Vec2d(
                 cannon_shape.radius + 40, 0
