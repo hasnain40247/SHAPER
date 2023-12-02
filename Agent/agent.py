@@ -63,12 +63,15 @@ class Agent:
         
     def _createnetwork(self):
         if len(self.layers) == 2:
-            self.network = (np.random.rand(self.layers[0]["Size"],self.layers[1]["Size"])-0.5)*2
+            self.network = (np.random.uniform(high=1, low=-1, size=(self.layers[0]["Size"],self.layers[1]["Size"])))  
+            #self.network = (np.random.rand(self.layers[0]["Size"],self.layers[1]["Size"])-0.5)*2
             self.activation.append(self.layers[1]["Activation"])
         else:
             for idx in range(len(self.layers)-1):
-                self.network.append((np.array(np.random.rand(self.layers[idx]["Size"],self.layers[idx+1]["Size"]))-0.5)*2)
-                self.activation.append(self.layers[idx]["Activation"])
+                lNewMat = np.random.uniform(high=1,low=-1,size=(self.layers[idx]["Size"],self.layers[idx+1]["Size"]))
+                #lNewMat = (np.array(np.random.rand(self.layers[idx]["Size"],self.layers[idx+1]["Size"]))-0.5)*2
+                self.network.append(lNewMat)
+                self.activation.append(self.layers[idx+1]["Activation"])
         self.complete = True
 
     def forwardPass (self, inputVector, v=False):
@@ -79,7 +82,7 @@ class Agent:
             out = np.matmul(inputVector, self.network[0])
             out = self.activation[0](out)
             for idx in range(1, len(self.network)):
-                if v: print("Layer" + str(idx) + ":", self.network[idx].shape, self.activation[idx].__name__)
+                if v: print("Layer" + str(idx+1) + ":", self.network[idx].shape, self.activation[idx].__name__)
                 out = np.matmul(out, self.network[idx])
                 out = self.activation[idx](out)
             if v:
@@ -190,31 +193,12 @@ if __name__ == "__main__":
     a = Agent()
 
     ## Add all the layers as required.
-    a.addLayer("Input", 28, None, False)
-    a.addLayer("H1", 150, Sigmoid, False)
-    a.addLayer("H2", 50, Sigmoid, False)
-    a.addLayer("H3", 20, ReLu, False)
-    a.addLayer("Output", 10, None, True)
+    a.addLayer("Input", 24, None, False)
+    a.addLayer("H1", 100, Linear, False)
+    a.addLayer("Output", 3, Linear, True)
 
-    a.save("./modelTest")
-
-    loaded = Agent()
-
-    ## Add all the layers as required.
-    loaded.addLayer("Input", 28, None, False)
-    loaded.addLayer("H1", 150, Sigmoid, False)
-    loaded.addLayer("H2", 50, Sigmoid, False)
-    loaded.addLayer("H3", 20, ReLu, False)
-    loaded.addLayer("Output", 10, None, True)
-
-    loaded.load("./modelTest")
-
-    print(loaded.network[0] == a.network[0])
-
-    ## Generate a random input.
-    input = np.random.rand(1,28)
-    print(a)
-
-    ## Get an output for the random input.
-    out = a.forwardPass(input, True)
-    print(out)
+    for _ in range(100):
+        input = np.random.uniform(high=1,low=-1,size=(1,24))
+        output = a.forwardPass(input, v=False)
+        output = np.clip(output, a_min=-10, a_max=10)
+        print(output.shape, output)

@@ -6,6 +6,8 @@ from math import atan2, sin, cos, sqrt
 MASS_PER_LENGTH = 10
 ARM_WIDTH = 10
 PI = 355/113 ## Fancy approximation for Pi
+HEIGHT = 850
+WIDTH = 1500
 
 
 ## PID settings
@@ -165,9 +167,9 @@ class Arm():
             mot = self.Objects[objIdx]["Motor"]
             l = self.Objects[objIdx]["Length"]/2
             ## The current angle of the arms wrt to the global XY plane
-            agentInputs["Angles"].append(obj.angle)
+            agentInputs["Angles"].append(obj.angle/(2*PI))
             ## The rate at which the arms are moving
-            agentInputs["Rates"].append(obj.angular_velocity)
+            agentInputs["Rates"].append(obj.angular_velocity/4)
             ## Gets the position of the endpoints of the arm.
             agentInputs["Positions"].extend(centerToEndPoints(obj.position,l,obj.angle))
         return agentInputs
@@ -209,8 +211,9 @@ class Arm():
             self.pinJoint = None
 
 def centerToEndPoints(centerPos, length, angle):
-    return [centerPos[0]+length*cos(angle), centerPos[1]+length*sin(angle),
-            centerPos[0]-length*cos(angle), centerPos[1]-length*sin(angle)
+    return [
+            (centerPos[0]+length*cos(angle))/WIDTH, (centerPos[1]+length*sin(angle))/HEIGHT,
+            (centerPos[0]-length*cos(angle))/WIDTH, (centerPos[1]-length*sin(angle))/HEIGHT
             ]
 
 

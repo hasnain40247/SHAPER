@@ -14,6 +14,15 @@ import pymunk
 import pymunk.pygame_util
 from pymunk.vec2d import Vec2d
 
+def createAgent():
+    lAgent = Agent()
+    lAgent.addLayer("Input", 24, None, False)
+    lAgent.addLayer("H0", 100, Linear, False)
+    lAgent.addLayer("Output", 3, Linear, True)
+
+    return lAgent
+    
+
 def createPolygon():
     vs = [(-30, 0), (0, 3), (10, 0), (0, -3)]
     # mass = 1
@@ -50,29 +59,27 @@ def post_solve_arrow_hit(arbiter, space, data):
         arrow_body = b.body
 
         if a == data["SafeWall"]:
-            data["isArrowStopped"] = True
             space.remove(b)
+            data["isThereAFlyingPolygon"] = False
             #print("Hit a safe wall. Score the agent")
         
         if a == data["TargetWall"]:
-            data["isArrowStopped"] = True
             data["score"] -= 1.0
             space.remove(b)
+            data["isThereAFlyingPolygon"] = False
             #print("Hit a target wall. Punish the aagent")
 
         if a in data["OtherWalls"]:
-            data["isArrowStopped"] = True
             space.remove(b)
+            data["isThereAFlyingPolygon"] = False
             #print("Hit a unnecessary wall. No points")
 
         if a in data["ArmShapes"]:
-            data["isArrowStopped"] = True
             #print("Hit an arm section. Give some score.")
             data["score"] += 1.0
 
         if a == data["Cannon"]:
-            data["isArrowStopped"] = True
-            #print("Perfect strike. Give a huge reward.")
+            print("Perfect strike. Give a huge reward.")
 
         
 
@@ -90,15 +97,17 @@ def post_solve_arrow_hit(arbiter, space, data):
         # )
 def dataForAgent(polygon):
     return [
-        polygon.position[0],
-        polygon.position[1],
-        polygon.angle,
-        polygon.angular_velocity 
+        polygon.position[0]/WIDTH,
+        polygon.position[1]/HEIGHT,
+        polygon.angle/(2*PI),
+        polygon.angular_velocity,
+        polygon.velocity[0]/2500,
+        polygon.velocity[1]/2500
         ## Add velocity too
     ]
 
 
-offset = 150
+offset = 100
 def getRandomPositionForCannon():
     line = random.random()
     # if line < 0.25:
@@ -207,17 +216,17 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
     ## Init the score as 0 for all agents
     handler.data["score"] = 0.0
 
-    handler.data["isArrowStopped"] = True
+    handler.data["isThereAFlyingPolygon"] = False
 
     handler.post_solve = post_solve_arrow_hit
 
     frameNumber = 0
     activePolygon = None
-    gammaCorrection = 20*(PI/180)
+    gammaCorrection = 10*(PI/180)
     while running:
         if frameNumber > maxFrames:
             running = False
-        if handler.data["isArrowStopped"]:
+        if handler.data["isThereAFlyingPolygon"] == False:
             activePolygon = None
         if display:
             for event in pygame.event.get():
@@ -227,17 +236,25 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
                     and (event.key in [pygame.K_ESCAPE, pygame.K_q])
                 ):
                     running = False
-        if frameNumber%100 == 0:
+        if not handler.data["isThereAFlyingPolygon"]:
             ## Choose a random angle. But make sure it is aimed at the target wall.
-            firingPosition = cannon_body.position
-            
-            angle1 = (static[wallKeyToIdx(targetWall)].a - firingPosition).angle  
-            angle2 = (static[wallKeyToIdx(targetWall)].b - firingPosition).angle  
 
-            minAngle = min(angle1, angle2) 
-            maxAngle = max(angle1, angle2)
+            # print(cannon_body.position.x - static[wallKeyToIdx(targetWall)].a.x)
+            if cannon_body.position.x - static[wallKeyToIdx(targetWall)].a.x < 0:
+                lowerLimit = np.arcsin(np.abs(HEIGHT - cannon_body.position.y)/ np.sqrt((cannon_body.position.x - static[wallKeyToIdx(targetWall)].a.x)**2 + (HEIGHT - cannon_body.position.y)**2))
+                upperLimit = np.arcsin((cannon_body.position.y)/ (np.sqrt((cannon_body.position.x - static[wallKeyToIdx(targetWall)].a.x)**2 + (HEIGHT - cannon_body.position.y)**2)))
+                cannon_body.angle = np.random.uniform(-lowerLimit + gammaCorrection,upperLimit - gammaCorrection)
+            else:
+                lowerLimit = np.arcsin(np.abs(HEIGHT - cannon_body.position.y)/ np.sqrt((cannon_body.position.x)**2 + (HEIGHT - cannon_body.position.y)**2))
+                upperLimit = np.arcsin((cannon_body.position.y)/ (np.sqrt((cannon_body.position.x)**2 + (HEIGHT - cannon_body.position.y)**2)))
+                cannon_body.angle =np.random.uniform(-PI + lowerLimit + gammaCorrection, 3*PI/2 - upperLimit - gammaCorrection)
+            # firingPosition = cannon_body.position
+            # angle1 = (static[wallKeyToIdx(targetWall)].a - firingPosition).angle  
+            # angle2 = (static[wallKeyToIdx(targetWall)].b - firingPosition).angle  
+            # minAngle = min(angle1, angle2) 
+            # maxAngle = max(angle1, angle2)
 
-            cannon_body.angle = minAngle + random.random()*(maxAngle-minAngle) + gammaCorrection
+            # lRandomangle = minAngle + random.random()*(maxAngle-minAngle) + gammaCorrection
             # move the unfired arrow together with the cannon
             arrow_body.position = cannon_body.position + Vec2d(
                 cannon_shape.radius + 40, 0
@@ -254,25 +271,30 @@ def play(display=True, agent=None, path=None, scoreFrameFunc=lambda:0, scoreFull
             # space.add(arrow_body)
             flying_arrows.append(arrow_body)
             handler.data["flying_arrows"] = flying_arrows
-            activePolygon = flying_arrows[-1]
+            activePolygon = arrow_body
             arrow_body, arrow_shape = createPolygon()
             space.add(arrow_body, arrow_shape)
 
             ## Indicates a polygon is still in flight.
-            handler.data["isArrowStopped"] = False
+            handler.data["isThereAFlyingPolygon"] = True
 
         if activePolygon != None:
             inputVector = []
+            ## Get the scaled data from the polygon.
             inputVector += dataForAgent(activePolygon)
+            ## Get the scaled data from the arm
             armdData = arm1.physicsToAgent()
+            #print(armdData)
             for key in armdData:
                 inputVector += armdData[key]
             ## TODO Add wall data
             inputVector = np.array(inputVector)
+            inputVector = np.clip(inputVector, a_min=-1, a_max=1)/10
             if agent != None:
                 rawOut = agent.forwardPass(inputVector)
-                rawOut = rawOut[:-1]
-                arm1.agentToPhysics(rawOut, maxSpeed=1.2)
+                output = np.clip(rawOut, a_min=-10, a_max=10)
+                print(output)
+                arm1.agentToPhysics(output, maxSpeed=1.2)
 
 
         for flying_arrow in flying_arrows:
@@ -323,14 +345,8 @@ ParentsCount = PopulationCount-ChildrenCount
 
 
 def playGivenAgent(path):
-    lAgent = Agent()
-    lAgent.addLayer("Input", 22, None, False)
-    lAgent.addLayer("H0", 512, Linear, False)
-    lAgent.addLayer("H1", 256, Sigmoid, False)
-    lAgent.addLayer("H2", 128, TanH, False)
-    lAgent.addLayer("H3", 64, Sigmoid, False)
-    lAgent.addLayer("Output", 4, None, True)
-    
+    lAgent= createAgent()
+
     lAgent.load(path)
     play(display=True, agent=lAgent)
 
@@ -340,13 +356,7 @@ def singleMain():
     Agents = []
     avgScores = []
     for _ in range(PopulationCount):
-        lAgent = Agent()
-        lAgent.addLayer("Input", 22, None, False)
-        lAgent.addLayer("H0", 512, Linear, False)
-        lAgent.addLayer("H1", 256, Sigmoid, False)
-        lAgent.addLayer("H2", 128, TanH, False)
-        lAgent.addLayer("H3", 64, Sigmoid, False)
-        lAgent.addLayer("Output", 4, None, True)
+        lAgent= createAgent()
         Agents.append([lAgent, 0.0])
 
     generation = 0
@@ -392,13 +402,7 @@ def multiProcessingMain():
     avgScores = []
 
     for _ in range(PopulationCount):
-        lAgent = Agent()
-        lAgent.addLayer("Input", 22, None, False)
-        lAgent.addLayer("H0", 512, Linear, False)
-        lAgent.addLayer("H1", 256, Sigmoid, False)
-        lAgent.addLayer("H2", 128, TanH, False)
-        lAgent.addLayer("H3", 64, Sigmoid, False)
-        lAgent.addLayer("Output", 4, None, True)
+        lAgent= createAgent()
         Agents.append([lAgent, 0.0])
 
     generation = 0
