@@ -6,6 +6,8 @@ from math import atan2, sin, cos, sqrt
 MASS_PER_LENGTH = 10
 ARM_WIDTH = 10
 PI = 355/113 ## Fancy approximation for Pi
+HEIGHT = 850
+WIDTH = 1500
 
 
 ## PID settings
@@ -13,6 +15,9 @@ P_ = 1.9
 D_ = -0.5
 I_ = 0.0005
 
+
+## The arm has all the information realted to the arm.
+## Allows the agent to control the joints.
 class Arm():
     def __init__(self, space, anchorPoistion, group=1):
 
@@ -40,6 +45,7 @@ class Arm():
         # This parameters govern it
         self.pinJoint = None
 
+    ## Add new joints as and when we need it. 
     def addJoint(self, length, rotation = 0, collision_type = 20, end=False):
     
         if self.complete:
@@ -61,7 +67,7 @@ class Arm():
 
             ## Create the shape for the object.
             newArmShape = pymunk.Poly.create_box(newArmObject, (ARM_WIDTH, length))
-            newArmShape.color = 0, 0, 0, 100
+            newArmShape.color = 255, 255, 255, 0
 
             ## Add constrains and motors to the bodies.
             newJoint = pymunk.PinJoint(newArmObject, newAnchor, (0, -length/2), (0, 0))
@@ -101,7 +107,7 @@ class Arm():
 
             ## Create the shape for the object.
             newArmShape = pymunk.Poly.create_box(newArmObject, (ARM_WIDTH, length))
-            newArmShape.color = 0, 0, 0, 100
+            newArmShape.color = 255, 255, 255, 0
 
             ## Add constrains and motors to the bodies.
             newJoint = pymunk.PinJoint(newArmObject, prevBody, (0, -length/2), (0, prevLength/2))
@@ -125,7 +131,7 @@ class Arm():
         
    
         if end:
-            self.Objects[-1]["Shape"].collision_type=collision_type
+            #self.Objects[-1]["Shape"].collision_type=collision_type
          
 
             self.complete = True
@@ -135,6 +141,7 @@ class Arm():
 
 
     ## Might need this function for compatibility with other objects.
+    ## Just to make sure it conforms to the other interfaces.
     def draw(self, display, color = [0, 0, 0]):
         return
     
@@ -165,9 +172,9 @@ class Arm():
             mot = self.Objects[objIdx]["Motor"]
             l = self.Objects[objIdx]["Length"]/2
             ## The current angle of the arms wrt to the global XY plane
-            agentInputs["Angles"].append(obj.angle)
+            agentInputs["Angles"].append(obj.angle/(2*PI))
             ## The rate at which the arms are moving
-            agentInputs["Rates"].append(obj.angular_velocity)
+            agentInputs["Rates"].append(obj.angular_velocity/4)
             ## Gets the position of the endpoints of the arm.
             agentInputs["Positions"].extend(centerToEndPoints(obj.position,l,obj.angle))
         return agentInputs
@@ -192,19 +199,6 @@ class Arm():
         #print("Current angle:", self.CurrentAngles, "Expected angle:", self.ExpectedAngles)
         return self.CurrentAngles
     
-    # Once we get the data from the agent we need the physics engine to execute it.
-    # This function uses a simple PID system to achieve that. 
-    # DIFF = (EXPECTED - CURRENT)
-    def arbiterAgent(self):
-        if len(self.ExpectedAngles) == 0:
-            return
-        diff = list(map(lambda x: x[1]-x[0], zip(self.CurrentAngles, self.ExpectedAngles)))
-        for objIdx in range(len(self.Objects)):
-            if diff[objIdx] < 10**-6:
-                continue
-            self.diffCounter[objIdx] += diff[objIdx]
-            self.Objects[objIdx]["Motor"].rate = P_*diff[objIdx] + D_*self.Objects[objIdx]["Motor"].rate + I_*self.diffCounter[objIdx]
-
     ## Called by the collision handler.
     def grab(self,anchor,polygon):
         if self.pinJoint is None and self.Objects[-1]["Object"] is not None:
@@ -222,8 +216,9 @@ class Arm():
             self.pinJoint = None
 
 def centerToEndPoints(centerPos, length, angle):
-    return [centerPos[0]+length*cos(angle), centerPos[1]+length*sin(angle),
-            centerPos[0]-length*cos(angle), centerPos[1]-length*sin(angle)
+    return [
+            (centerPos[0]+length*cos(angle))/WIDTH, (centerPos[1]+length*sin(angle))/HEIGHT,
+            (centerPos[0]-length*cos(angle))/WIDTH, (centerPos[1]-length*sin(angle))/HEIGHT
             ]
 
 

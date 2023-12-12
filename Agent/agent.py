@@ -5,10 +5,10 @@ import random
 import os
 from matplotlib import pyplot as plt
 
+## Activation functions
 def TanH(x):
     return np.tanh(x)
 
-## Activation functions
 def Sigmoid(x):
     return 2*(1/(1+np.exp(-1*x))-0.5)
 
@@ -23,6 +23,8 @@ def Linear(x):
 def ReLu(x):
     return (x+abs(x))/2
 
+
+## Utility functions used in crossover and mutation.
 def vectorize(mat):
     size = mat.shape[0] * mat.shape[1]
     return np.reshape(mat, size)
@@ -30,7 +32,7 @@ def vectorize(mat):
 def vecToMat(vec, shape):
     return np.reshape(vec, shape)
 
-
+## THe main class the contains the neural network.
 class Agent:
     def __init__(self):
         ## We use the comple variable to make sure the network is well definied.
@@ -63,14 +65,19 @@ class Agent:
         
     def _createnetwork(self):
         if len(self.layers) == 2:
-            self.network = (np.random.rand(self.layers[0]["Size"],self.layers[1]["Size"])-0.5)*2
+            self.network = (np.random.uniform(high=1, low=-1, size=(self.layers[0]["Size"],self.layers[1]["Size"])))  
+            #self.network = (np.random.rand(self.layers[0]["Size"],self.layers[1]["Size"])-0.5)*2
             self.activation.append(self.layers[1]["Activation"])
         else:
             for idx in range(len(self.layers)-1):
-                self.network.append((np.array(np.random.rand(self.layers[idx]["Size"],self.layers[idx+1]["Size"]))-0.5)*2)
-                self.activation.append(self.layers[idx]["Activation"])
+                lNewMat = np.random.uniform(high=1,low=-1,size=(self.layers[idx]["Size"],self.layers[idx+1]["Size"]))
+                #lNewMat = (np.array(np.random.rand(self.layers[idx]["Size"],self.layers[idx+1]["Size"]))-0.5)*2
+                self.network.append(lNewMat)
+                self.activation.append(self.layers[idx+1]["Activation"])
         self.complete = True
 
+
+    ## Given an input vector it will perform the forwards pass on the entrire netwrok. 
     def forwardPass (self, inputVector, v=False):
         if self.complete:
             if v:
@@ -79,7 +86,7 @@ class Agent:
             out = np.matmul(inputVector, self.network[0])
             out = self.activation[0](out)
             for idx in range(1, len(self.network)):
-                if v: print("Layer" + str(idx) + ":", self.network[idx].shape, self.activation[idx].__name__)
+                if v: print("Layer" + str(idx+1) + ":", self.network[idx].shape, self.activation[idx].__name__)
                 out = np.matmul(out, self.network[idx])
                 out = self.activation[idx](out)
             if v:
@@ -96,6 +103,7 @@ class Agent:
     def vecToMat(self):
         pass
 
+    ## Saves the weights to disk.
     def save(self, path):
         if self.complete:
             try:
@@ -107,6 +115,8 @@ class Agent:
                 filePath = os.path.join(path, "network_" + str(idx))
                 np.save(filePath, self.network[idx])
 
+    ## Loads the weights from the disk.
+    ## The network must be initialized before calling thins function.
     def load(self, path):
         if self.complete:
             for idx in range(len(self.network)):
@@ -114,16 +124,30 @@ class Agent:
                 self.network[idx] = np.load(filePath)
 
 
+    ## All the weights we sqashed to values between [-1, 1]
     def normalize(self, x):
         for idx in range(len(self.network)):
             self.network[idx] = (self.network[idx] - np.min(self.network[idx]))/(np.max(self.network[idx]) - np.min(self.network[idx]))
     
     ## Adds randomness to the network and normalizes the values.
-    def mutate(self, eta=0.01):
-        for idx in range(len(self.network)):
-            rand = (np.random.rand(*self.network[idx].shape)-0.5)*2*eta
-            self.network[idx] = self.network[idx] + rand
-            self.network[idx] = (self.network[idx] - np.min(self.network[idx]))/(np.max(self.network[idx]) - np.min(self.network[idx]))
+    def mutate(self, eta=0.8, gamma=0.01):
+        for matIdx in range(len(self.network)):
+            shape = self.network[matIdx].shape
+            agentVec = vectorize(self.network[matIdx])
+
+            for _ in range(int(eta*agentVec.shape[0])):
+                p1 = random.randint(0, agentVec.shape[0]-1)
+                p2 = random.randint(0, agentVec.shape[0]-1)
+
+                t = agentVec[p1]
+                agentVec[p1] = agentVec[p2]
+                agentVec[p2] = t
+
+                agentVec[p1] = np.clip(agentVec[p1]+random.random()*gamma, -1.0, 1.0)
+                agentVec[p2] = np.clip(agentVec[p2]+random.random()*gamma, -1.0, 1.0)
+            newMat = vecToMat(agentVec, shape)
+            self.network[matIdx] = newMat
+
 
     ## Just to print the network in a nice way.
     def __repr__(self) -> str:
@@ -138,7 +162,7 @@ class Agent:
 
 ## Take two agents and returns a new agent that is the combination of both.
 ## Each matrix is considered as an alle. Each parent contributes half of its alle.
-def crossover(agent1, agent2):
+def uniformCrossover(agent1, agent2):
     ## Assuming that agent1 and agent2 are of same dimensions.
 
     ## Create a new agent.
@@ -167,6 +191,33 @@ def crossover(agent1, agent2):
 
     return newAgent
 
+
+## Take two agents and returns a new agent that is the combination of both.
+## Each matrix is considered as an alle. Each parent contributes half of its alle.
+def singlePointCrossover(agent1, agent2):
+    ## Assuming that agent1 and agent2 are of same dimensions.
+
+    ## Create a new agent.
+    newAgent = Agent()
+    for layerIdx in range(len(agent1.layers)):
+        layerDetails = agent1.layers[layerIdx]
+        newAgent.addLayer(layerDetails["Name"], layerDetails["Size"], layerDetails["Activation"], layerDetails["Output"])
+
+    ## TODO FIX THIS PLEASE.
+    ## Looks like while creating a new child we are missing something.
+    numOfMatrices = len(agent1.network)
+    for matIdx in range(numOfMatrices):
+        shape = agent1.network[matIdx].shape
+        agent1Vec = vectorize(agent1.network[matIdx])
+        agent2Vec = vectorize(agent2.network[matIdx])
+
+        crossOverPoint = random.randint(0, agent1Vec.shape[0]-1)
+        newVector = np.concatenate([agent1Vec[:crossOverPoint], agent2Vec[crossOverPoint:]])
+        newMat = vecToMat(newVector, shape)
+        newAgent.network[matIdx] = newMat
+
+    return newAgent
+
 ## Take two agents and returns a new agent that is the combination of both.
 ## Just averages the values of the weights.
 def crossoverAvg(agent1, agent2):
@@ -190,31 +241,26 @@ if __name__ == "__main__":
     a = Agent()
 
     ## Add all the layers as required.
-    a.addLayer("Input", 28, None, False)
-    a.addLayer("H1", 150, Sigmoid, False)
-    a.addLayer("H2", 50, Sigmoid, False)
-    a.addLayer("H3", 20, ReLu, False)
-    a.addLayer("Output", 10, None, True)
+    a.addLayer("Input", 5, None, False)
+    a.addLayer("H1", 4, Linear, False)
+    a.addLayer("Output", 3, Linear, True)
 
-    a.save("./modelTest")
-
-    loaded = Agent()
+    ## Make an agegnt.
+    b = Agent()
 
     ## Add all the layers as required.
-    loaded.addLayer("Input", 28, None, False)
-    loaded.addLayer("H1", 150, Sigmoid, False)
-    loaded.addLayer("H2", 50, Sigmoid, False)
-    loaded.addLayer("H3", 20, ReLu, False)
-    loaded.addLayer("Output", 10, None, True)
+    b.addLayer("Input", 5, None, False)
+    b.addLayer("H1", 4, Linear, False)
+    b.addLayer("Output", 3, Linear, True)
 
-    loaded.load("./modelTest")
+    kid = singlePointCrossover(a,b)
 
-    print(loaded.network[0] == a.network[0])
+    for _ in range(100):
+        input = np.random.uniform(low=-1,high=1, size=5)
+        output = kid.forwardPass(input)
+        print(output)
 
-    ## Generate a random input.
-    input = np.random.rand(1,28)
-    print(a)
 
-    ## Get an output for the random input.
-    out = a.forwardPass(input, True)
-    print(out)
+    print(kid.network[0])
+    kid.mutate()
+    print(kid.network[0])
