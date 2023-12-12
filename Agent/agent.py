@@ -5,10 +5,10 @@ import random
 import os
 from matplotlib import pyplot as plt
 
+## Activation functions
 def TanH(x):
     return np.tanh(x)
 
-## Activation functions
 def Sigmoid(x):
     return 2*(1/(1+np.exp(-1*x))-0.5)
 
@@ -23,6 +23,8 @@ def Linear(x):
 def ReLu(x):
     return (x+abs(x))/2
 
+
+## Utility functions used in crossover and mutation.
 def vectorize(mat):
     size = mat.shape[0] * mat.shape[1]
     return np.reshape(mat, size)
@@ -30,7 +32,7 @@ def vectorize(mat):
 def vecToMat(vec, shape):
     return np.reshape(vec, shape)
 
-
+## THe main class the contains the neural network.
 class Agent:
     def __init__(self):
         ## We use the comple variable to make sure the network is well definied.
@@ -74,6 +76,8 @@ class Agent:
                 self.activation.append(self.layers[idx+1]["Activation"])
         self.complete = True
 
+
+    ## Given an input vector it will perform the forwards pass on the entrire netwrok. 
     def forwardPass (self, inputVector, v=False):
         if self.complete:
             if v:
@@ -99,6 +103,7 @@ class Agent:
     def vecToMat(self):
         pass
 
+    ## Saves the weights to disk.
     def save(self, path):
         if self.complete:
             try:
@@ -110,6 +115,8 @@ class Agent:
                 filePath = os.path.join(path, "network_" + str(idx))
                 np.save(filePath, self.network[idx])
 
+    ## Loads the weights from the disk.
+    ## The network must be initialized before calling thins function.
     def load(self, path):
         if self.complete:
             for idx in range(len(self.network)):
@@ -117,12 +124,13 @@ class Agent:
                 self.network[idx] = np.load(filePath)
 
 
+    ## All the weights we sqashed to values between [-1, 1]
     def normalize(self, x):
         for idx in range(len(self.network)):
             self.network[idx] = (self.network[idx] - np.min(self.network[idx]))/(np.max(self.network[idx]) - np.min(self.network[idx]))
     
     ## Adds randomness to the network and normalizes the values.
-    def mutate(self, eta=0.1):
+    def mutate(self, eta=0.8, gamma=0.01):
         for matIdx in range(len(self.network)):
             shape = self.network[matIdx].shape
             agentVec = vectorize(self.network[matIdx])
@@ -134,6 +142,9 @@ class Agent:
                 t = agentVec[p1]
                 agentVec[p1] = agentVec[p2]
                 agentVec[p2] = t
+
+                agentVec[p1] = np.clip(agentVec[p1]+random.random()*gamma, -1.0, 1.0)
+                agentVec[p2] = np.clip(agentVec[p2]+random.random()*gamma, -1.0, 1.0)
             newMat = vecToMat(agentVec, shape)
             self.network[matIdx] = newMat
 

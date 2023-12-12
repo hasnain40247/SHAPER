@@ -15,6 +15,9 @@ P_ = 1.9
 D_ = -0.5
 I_ = 0.0005
 
+
+## The arm has all the information realted to the arm.
+## Allows the agent to control the joints.
 class Arm():
     def __init__(self, space, anchorPoistion, group=1):
 
@@ -42,6 +45,7 @@ class Arm():
         # This parameters govern it
         self.pinJoint = None
 
+    ## Add new joints as and when we need it. 
     def addJoint(self, length, rotation = 0, collision_type = 20, end=False):
     
         if self.complete:
@@ -137,6 +141,7 @@ class Arm():
 
 
     ## Might need this function for compatibility with other objects.
+    ## Just to make sure it conforms to the other interfaces.
     def draw(self, display, color = [0, 0, 0]):
         return
     

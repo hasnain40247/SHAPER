@@ -1,3 +1,0 @@
-pygame=2.5.1
-pymunk=latest
-numpy=latest
